@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>markm</title>
+    <!--
+      Neutralino client library (version-matched to the bundled binaries).
+      The native runtime injects window.NL_* globals before any page script
+      runs; this file reads them and bridges JS calls to native APIs over a
+      local WebSocket. Loaded as a classic script so `window.Neutralino`
+      exists for the Svelte app below.
+    -->
+    <script src="./neutralino.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

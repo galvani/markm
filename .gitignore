@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Neutralino native binaries (fetched via `neu update`, not source)
+bin/
+
+# Neutralino build artifacts + runtime
+.tmp/
+.storage/
+neutralino.log
+
+# Logs / env / OS cruft
+*.log
+.env
+.DS_Store

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=markm
+GenericName=Markdown Viewer
+Comment=Fast, themeable markdown viewer with an edit mode
+Exec=@EXEC@ --path=@APPDIR@ %f
+Icon=@ICON@
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/markdown;text/x-markdown;
+Keywords=markdown;md;editor;viewer;preview;
+StartupWMClass=markm
+StartupNotify=true
