@@ -72,6 +72,44 @@ export async function pickOpenPath() {
   return entries && entries.length ? entries[0] : null;
 }
 
+/** Show the native "open folder" dialog; returns a directory path or null. */
+export async function pickFolderPath() {
+  if (!N) return null;
+  const path = await N.os.showFolderDialog('Open folder');
+  return path || null;
+}
+
+const MD_EXT = new Set(['md', 'markdown', 'mdown', 'mkd', 'mkdn']);
+
+/**
+ * List markdown files directly inside a folder (non-recursive), sorted by name.
+ * Returns [{ name, path }]. Empty array on failure.
+ */
+export async function listMarkdownFiles(dir) {
+  if (!N) return [];
+  try {
+    const entries = await N.filesystem.readDirectory(dir);
+    return entries
+      .filter((e) => (e.type || '').toUpperCase() !== 'DIRECTORY')
+      .filter((e) => MD_EXT.has((e.entry.split('.').pop() || '').toLowerCase()))
+      .map((e) => ({ name: e.entry, path: `${dir}/${e.entry}` }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+}
+
+/** Open the OS file manager at a file's containing folder (reveal). */
+export async function revealInFileManager(filePath) {
+  if (!N || !filePath) return;
+  const dir = filePath.slice(0, filePath.lastIndexOf('/')) || '/';
+  try {
+    await N.os.open(dir);
+  } catch {
+    /* non-fatal */
+  }
+}
+
 /** Show the native "save as" dialog; returns a path or null. */
 export async function pickSavePath(suggested = 'untitled.md') {
   if (!N) return null;

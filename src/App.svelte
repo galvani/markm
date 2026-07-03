@@ -2,10 +2,12 @@
   import { onMount } from 'svelte';
   import Editor from './lib/Editor.svelte';
   import Preview from './lib/Preview.svelte';
+  import Sidebar from './lib/Sidebar.svelte';
   import { THEMES, DEFAULT_THEME, applyTheme } from './lib/themes.js';
   import {
     initNative, launchFilePath, readTextFile, writeTextFile,
     pickOpenPath, pickSavePath, saveSetting, loadSetting, setWindowTitle,
+    pickFolderPath, listMarkdownFiles, revealInFileManager,
   } from './lib/neu.js';
 
   const WELCOME = `# Welcome to markm
@@ -41,8 +43,12 @@ const hello = (who) => \`hi, \${who}\`;
   let filePath = $state(null);
   let dirty = $state(false);
   let zoom = $state(1);
+  let folderPath = $state(null);
+  let folderFiles = $state([]);
+  let sidebarOpen = $state(false);
 
   let fileName = $derived(filePath ? filePath.split('/').pop() : 'untitled.md');
+  let folderName = $derived(folderPath ? folderPath.split('/').pop() : '');
 
   // Keep the OS window title in sync with the open file + dirty state.
   $effect(() => {
@@ -63,10 +69,41 @@ const hello = (who) => \`hi, \${who}\`;
     const savedZoom = parseFloat(await loadSetting('zoom'));
     applyZoom(Number.isFinite(savedZoom) ? savedZoom : 1);
 
+    // Restore the folder + sidebar. The sidebar stays hidden on startup unless
+    // it was open last session ("unless previously").
+    const savedFolder = await loadSetting('folder');
+    if (savedFolder) {
+      folderPath = savedFolder;
+      folderFiles = await listMarkdownFiles(savedFolder);
+    }
+    sidebarOpen = (await loadSetting('sidebarOpen')) === '1' && !!folderPath;
+
     // If launched with a file (xdg-open / file manager / CLI arg), open it.
     const launch = launchFilePath();
     if (launch) await openPath(launch);
   });
+
+  async function openFolder() {
+    const dir = await pickFolderPath();
+    if (!dir) return;
+    folderPath = dir;
+    folderFiles = await listMarkdownFiles(dir);
+    setSidebar(true);
+    saveSetting('folder', dir);
+  }
+
+  function setSidebar(open) {
+    sidebarOpen = open;
+    saveSetting('sidebarOpen', open ? '1' : '0');
+  }
+
+  function toggleSidebar() {
+    setSidebar(!sidebarOpen);
+  }
+
+  function revealCurrent() {
+    revealInFileManager(filePath);
+  }
 
   // Zoom scales the whole UI (chrome + editor + preview). We use transform:
   // scale() with an inverse width/height rather than the CSS `zoom` property,
@@ -77,10 +114,18 @@ const hello = (who) => \`hi, \${who}\`;
     zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 10) / 10));
     const el = document.getElementById('app');
     if (el) {
-      el.style.transformOrigin = '0 0';
-      el.style.transform = `scale(${zoom})`;
-      el.style.width = `${100 / zoom}%`;
-      el.style.height = `${100 / zoom}vh`;
+      if (zoom === 1) {
+        // No transform at 100% — a transformed ancestor breaks CodeMirror's
+        // coordinate measurement (selection), so keep the common case clean.
+        el.style.transform = 'none';
+        el.style.width = '100%';
+        el.style.height = '100%';
+      } else {
+        el.style.transformOrigin = '0 0';
+        el.style.transform = `scale(${zoom})`;
+        el.style.width = `${100 / zoom}%`;
+        el.style.height = `${100 / zoom}vh`;
+      }
     }
     saveSetting('zoom', String(zoom));
   }
@@ -143,9 +188,24 @@ const hello = (who) => \`hi, \${who}\`;
 
 <div class="app">
   <header class="toolbar">
+    <button
+      class="icon"
+      class:active={sidebarOpen}
+      title="Toggle folder sidebar"
+      aria-label="Toggle folder sidebar"
+      onclick={toggleSidebar}
+    >☰</button>
     <div class="file">
       <span class="dot" class:dirty></span>
       <span class="name" title={filePath || ''}>{fileName}</span>
+      {#if filePath}
+        <button
+          class="icon reveal"
+          title="Reveal in file manager"
+          aria-label="Reveal in file manager"
+          onclick={revealCurrent}
+        >↗</button>
+      {/if}
     </div>
 
     <div class="modes" role="group" aria-label="View mode">
@@ -170,22 +230,28 @@ const hello = (who) => \`hi, \${who}\`;
         {/each}
       </select>
       <button onclick={openFile}>Open</button>
+      <button onclick={openFolder}>Folder</button>
       <button class="primary" onclick={save}>Save</button>
     </div>
   </header>
 
-  <main class="body" class:split={mode === 'split'}>
-    {#if mode === 'edit' || mode === 'split'}
-      <section class="pane editor-pane">
-        <Editor value={content} onChange={onEditorChange} />
-      </section>
+  <div class="workspace">
+    {#if sidebarOpen}
+      <Sidebar {folderName} files={folderFiles} activePath={filePath} onSelect={openPath} />
     {/if}
-    {#if mode === 'view' || mode === 'split'}
-      <section class="pane preview-pane">
-        <Preview source={content} />
-      </section>
-    {/if}
-  </main>
+    <main class="body" class:split={mode === 'split'}>
+      {#if mode === 'edit' || mode === 'split'}
+        <section class="pane editor-pane">
+          <Editor value={content} onChange={onEditorChange} />
+        </section>
+      {/if}
+      {#if mode === 'view' || mode === 'split'}
+        <section class="pane preview-pane">
+          <Preview source={content} />
+        </section>
+      {/if}
+    </main>
+  </div>
 </div>
 
 <style>
@@ -195,6 +261,12 @@ const hello = (who) => \`hi, \${who}\`;
     height: 100%;
     background: var(--bg);
     color: var(--fg);
+  }
+
+  .workspace {
+    flex: 1;
+    min-height: 0;
+    display: flex;
   }
 
   .toolbar {
@@ -238,6 +310,24 @@ const hello = (who) => \`hi, \${who}\`;
   .modes button.active {
     background: var(--accent);
     color: var(--accent-fg);
+  }
+
+  .icon {
+    padding: 0 9px;
+    font-size: 14px;
+    line-height: 1;
+    flex: none;
+  }
+  .icon.active {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-color: var(--accent);
+  }
+  .reveal {
+    height: 20px;
+    padding: 0 6px;
+    font-size: 12px;
+    color: var(--muted);
   }
 
   .actions {
@@ -307,7 +397,9 @@ const hello = (who) => \`hi, \${who}\`;
 
   .body {
     flex: 1;
+    min-width: 0;
     min-height: 0;
+    height: 100%;
     display: grid;
     grid-template-columns: 1fr;
   }

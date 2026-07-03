@@ -2,6 +2,27 @@
 
 Newest first. Decisions, rationale, and gotchas worth not re-deriving.
 
+## 2026-07-03 — Folder sidebar + editor selection fix
+
+- **Feature:** folder sidebar — in-app **Folder** button opens a directory,
+  sidebar lists its markdown files (top-level, non-recursive) to switch between;
+  `☰` toggles it. Hidden on startup **unless open last session** (persist
+  `sidebarOpen` + `folder`). Plus a **reveal-in-file-manager** (`↗`) action
+  (`os.open` on the file's dir). Did NOT register markm as a directory MIME
+  handler (out of scope).
+- **Bug fixed — no keyboard text selection in the editor.** Two causes/fixes:
+  1. The zoom `transform: scale()` was applied even at 100% (`scale(1)`). A
+     transformed ancestor breaks CodeMirror's selection coordinate measurement
+     in WebKitGTK. Fix: apply no transform at all when `zoom === 1`.
+  2. Dropped CodeMirror's `drawSelection()` → use **native browser selection**
+     (styled via `.cm-content ::selection`), which is robust under a transform.
+  Rule: **don't wrap CodeMirror in a CSS-transformed ancestor**; if zooming,
+  keep the 100% case transform-free.
+- **Known fl: `neu run` sometimes exits immediately (code 0) on a fresh launch**
+  right after "neu CLI connected" — an intermittent startup race, not stale
+  state (recurs even after clearing `.tmp`/`.storage`). A retry launches fine.
+  Watch whether the installed (`--path`) build shows it too.
+
 ## 2026-07-03 — Project bootstrapped, first working app
 
 ### Stack decision (the winding path)

@@ -4,7 +4,7 @@
 // CSS custom properties, so switching the app theme (which rewrites those
 // variables on <html>) restyles the editor live — no EditorView reconfigure.
 
-import { EditorView, keymap, highlightActiveLine, drawSelection, lineNumbers } from '@codemirror/view';
+import { EditorView, keymap, highlightActiveLine, lineNumbers } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
@@ -54,7 +54,9 @@ export function createEditor(parent, { doc = '', onChange } = {}) {
     extensions: [
       lineNumbers(),
       history(),
-      drawSelection(),
+      // Native browser selection (no drawSelection) — robust under the zoom
+      // transform, which otherwise throws off CodeMirror's own selection
+      // coordinate measurement in WebKitGTK. Styled via `.cm-content ::selection`.
       highlightActiveLine(),
       EditorView.lineWrapping,
       markdown({ base: markdownLanguage, codeLanguages: [] }),
