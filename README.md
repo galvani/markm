@@ -11,24 +11,43 @@ or trapped inside something like VS Code.
 
 - **View / Edit / Split** modes — read rendered markdown, edit the source
   (CodeMirror 6), or see both side by side.
+- **Live auto-refresh** — markm watches the open file; when it changes on disk it
+  reloads automatically and briefly **highlights the changed blocks** (they settle
+  into a subtle tint until the next change). Unsaved edits are never clobbered — a
+  dirty buffer is left alone.
+- **Git "Changes" view** — for a file under git, a word-level diff against the last
+  commit (HEAD): **insertions highlighted, deletions struck through**. The button
+  appears only when the open file is tracked.
+- **Open a file or a whole folder** — a sidebar switches between the markdown files
+  in a folder; launching on a directory (`markm .`, `markm /some/dir`) opens a
+  picker with **type-to-filter** and sort by **modified** (default) or **name**.
+- **Clickable links** — external links open in your browser, local `.md` links open
+  in markm, and `#anchors` scroll the page.
 - **Many themes** — Light, Dark, Dracula, Nord, Solarized Light, Gruvbox Dark,
   Rosé Pine. One switch restyles the chrome, the preview, *and* the editor.
+- **Reading font** — choose System / Sans / Serif / Mono. The font **auto-scales as
+  you widen the window** so line length stays readable while the content fills the
+  width (no letter-boxing).
 - **Zoom** — `Ctrl` `+` / `Ctrl` `-` / `Ctrl` `0`, or the toolbar control.
-- **Remembers everything** — theme, zoom, and view mode persist across launches.
+- **Remembers everything** — theme, reading font, zoom, view mode, the folder +
+  sidebar state, and **scroll position per file** persist across launches.
 - **Native file handling** — open/save dialogs, and `xdg-open` / "Open With"
   integration via a `.desktop` entry + `text/markdown` MIME association.
+- **Runs detached from the terminal** — `markm file.md` frees your shell prompt;
+  pass `--fg` (or `MARKM_FG=1`) to keep it in the foreground.
 - **Tiny & fast** — a ~1.8 MB native binary that renders through the system
   WebKitGTK; no bundled browser, no Electron bloat.
 
 ## Keyboard shortcuts
 
-| Shortcut            | Action            |
-|---------------------|-------------------|
-| `Ctrl` `E`          | Toggle edit/view  |
-| `Ctrl` `S`          | Save              |
-| `Ctrl` `O`          | Open              |
-| `Ctrl` `+` / `-`    | Zoom in / out     |
-| `Ctrl` `0`          | Reset zoom        |
+| Shortcut         | Action                        |
+|------------------|-------------------------------|
+| `Ctrl` `E`       | Toggle edit/view              |
+| `Ctrl` `S`       | Save                          |
+| `Ctrl` `O`       | Open                          |
+| `Ctrl` `+` / `-` | Zoom in / out                 |
+| `Ctrl` `0`       | Reset zoom                    |
+| `Esc`            | Close (in View mode / picker) |
 
 ## Tech stack
 
@@ -38,6 +57,7 @@ or trapped inside something like VS Code.
 - **[Svelte 5](https://svelte.dev/)** + **[Vite](https://vite.dev/)** — frontend.
 - **[CodeMirror 6](https://codemirror.net/)** — source editor.
 - **[markdown-it](https://github.com/markdown-it/markdown-it)** — renderer.
+- **[diff](https://github.com/kpdecker/jsdiff)** — word-level diff for the Changes view.
 
 ## Develop
 

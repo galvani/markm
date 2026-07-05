@@ -22,14 +22,26 @@ themes, fast (native shell, no bundled browser), and standalone.
 
 ## Core behavior
 
-- Opens a markdown file passed on the command line / via `xdg-open` / a file
-  manager, or via the in-app **Open** dialog.
-- Three modes: **View** (rendered), **Edit** (CodeMirror source), **Split**.
+- Opens a markdown **file** passed on the command line / via `xdg-open` / a file
+  manager, or via the in-app **Open** dialog. Opening a **directory** (`markm .`)
+  shows a picker of the folder's markdown files with type-to-filter and sort by
+  modified/name.
+- Modes: **View** (rendered), **Edit** (CodeMirror source), **Split**, and —
+  when the file is git-tracked — **Changes** (word-level diff vs HEAD, insertions
+  highlighted / deletions struck through).
+- **Live auto-refresh:** watches the open file and reloads on external change,
+  highlighting the changed blocks; a dirty buffer is never clobbered.
 - **Save** / **Save As** through native dialogs; window title shows a dirty dot.
-- **Theme switching** across a catalog of light/dark themes; applies live to
-  chrome + preview + editor via CSS variables.
-- **Zoom** in/out/reset (keyboard + toolbar), scaling the entire UI.
-- **Persists** theme, zoom, and view mode between launches (Neutralino storage).
+- **Theme switching** across a catalog of light/dark themes, plus a **reading-font**
+  choice; both apply live to chrome + preview + editor via CSS variables. The
+  reading font auto-scales with pane width (content fills the window).
+- **Clickable links** — external → browser, local `.md` → viewer, `#anchor` → scroll.
+- A **folder sidebar** switches between markdown files in the current directory.
+- **Zoom** in/out/reset (keyboard + toolbar), scaling the entire UI. **Esc** closes
+  (in View mode / the picker).
+- **Persists** theme, reading font, zoom, view mode, folder + sidebar state, and
+  **scroll position per file** between launches (Neutralino storage).
+- The console launcher **detaches** from the terminal by default (`--fg` to stay).
 
 ## Architecture
 
@@ -42,11 +54,17 @@ themes, fast (native shell, no bundled browser), and standalone.
 │         ▲  local WebSocket bridge (neutralino.js)         │
 │         ▼                                                 │
 │ Frontend (Svelte 5, compiled by Vite → dist/)            │
-│  App.svelte ── state: content, mode, theme, zoom, file    │
+│  App.svelte ── state: content, mode, theme, font, zoom,   │
+│                file, folder/sidebar, git, scroll, chooser │
 │   ├─ Editor.svelte  → CodeMirror 6 (lib/editor.js)        │
-│   ├─ Preview.svelte → markdown-it                         │
+│   ├─ Preview.svelte → markdown-it (+ links, pulse, scroll)│
+│   ├─ DiffView.svelte→ word-level diff vs HEAD (jsdiff)    │
+│   ├─ Sidebar.svelte → folder file list                    │
+│   ├─ Chooser.svelte → directory-launch file picker        │
 │   ├─ lib/themes.js  → CSS-variable theme catalog          │
-│   └─ lib/neu.js     → thin, degradable native wrappers    │
+│   ├─ lib/fonts.js   → reading-font catalog                │
+│   └─ lib/neu.js     → native wrappers (fs, dialogs,       │
+│                       storage, file-watch, git via exec)  │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -64,6 +82,7 @@ themes, fast (native shell, no bundled browser), and standalone.
 | Frontend       | Svelte 5 + Vite 6                   |
 | Source editor  | CodeMirror 6                        |
 | Renderer       | markdown-it 14                      |
+| Diff (Changes) | diff (jsdiff) 5                     |
 | Rendering engine | system WebKitGTK 4.1 (not bundled) |
 
 ## Why Neutralino (not Tauri / Electron / a Rust GUI)

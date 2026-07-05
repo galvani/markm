@@ -18,14 +18,20 @@ neutralino.config.json   native shell config (documentRoot=/dist/, --path aware)
 index.html               loads neutralino.js (classic) + the Svelte module
 src/
   main.js                mounts App
-  App.svelte             top-level state: content, mode, theme, zoom, file, dirty
-  app.css                base + rendered-markdown styles (theme-var driven)
+  App.svelte             top-level state: content, mode, theme, font, zoom, file,
+                         dirty, folder/sidebar, git (Changes), scroll, chooser
+  app.css                base + prose-derived markdown styles (theme-var driven)
   lib/
     neu.js               degradable wrappers over the Neutralino native API
-    themes.js            CSS-variable theme catalog + applyTheme
+                         (fs, dialogs, storage, watchFile, git via execCommand)
+    themes.js            CSS-variable theme catalog + applyTheme (sets data-mode)
+    fonts.js             reading-font catalog + applyFont (--body-font)
     editor.js            CodeMirror 6 setup (theme via var(--...))
     Editor.svelte        CodeMirror host component
-    Preview.svelte       markdown-it render
+    Preview.svelte       markdown-it render + link routing, refresh pulse, scroll
+    DiffView.svelte      word-level diff vs HEAD (jsdiff) for the Changes view
+    Sidebar.svelte       folder markdown-file list
+    Chooser.svelte       directory-launch picker (type-to-filter + sort)
 desktop/markm.desktop.in .desktop template (@EXEC@/@APPDIR@/@ICON@)
 mime/markm-markdown.xml  text/markdown MIME package
 scripts/install.sh       local install + MIME/desktop registration
@@ -67,5 +73,8 @@ launches and renders. When changing packaging, also run `install.sh` and
   devtools).
 - **Don't stop long-running processes with `pkill -f`** — match by exact PID
   (`ps -eo pid,comm | grep neutralino`) or `systemctl --user`.
+- **Don't kill markm instances you didn't spawn** — the user often keeps the app
+  open to watch changes land. Snapshot existing PIDs as protected and only signal
+  the ones you launched (diff `pgrep -x markm` before/after your own launch).
 - Don't add heavyweight deps that pull in a second rendering engine — the whole
   point is the ~2 MB native shell over system WebKitGTK.
