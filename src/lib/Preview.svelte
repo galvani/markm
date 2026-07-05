@@ -19,7 +19,7 @@
   .preview {
     height: 100%;
     overflow: auto;
-    padding: 32px 40px;
+    padding: 44px 56px;
     box-sizing: border-box;
   }
 </style>

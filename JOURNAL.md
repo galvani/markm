@@ -2,6 +2,39 @@
 
 Newest first. Decisions, rationale, and gotchas worth not re-deriving.
 
+## 2026-07-05 — Git Changes view, live auto-refresh, reading font, console detach
+
+- **Git "Changes" view** (task #12): word-level diff of the working buffer vs the
+  file at HEAD, tracked-changes style (`<ins>` highlight / `<del>` strikethrough),
+  in `DiffView.svelte` using jsdiff `diffWords`. The **Changes** mode button only
+  appears when the open file is git-tracked (`gitIsTracked`); `diff` is a transient
+  mode (not persisted as a startup mode). Git helpers run through `os.execCommand`
+  (`git -C <dir> …`) in `neu.js` (`gitIsTracked`, `gitHeadContent`).
+- **Live auto-refresh on external change.** `watchFile()` (neu.js) wraps Neutralino's
+  `filesystem.createWatcher` — it watches the file's *directory* (Neutralino watches
+  dirs, not single files) and filters `watchFile` events by basename. On a match we
+  reload from disk, but only when the buffer is **not dirty** (never clobber unsaved
+  edits) and only pulse when the bytes **actually changed** (so our own saves stay
+  silent — a save fires the watcher too). Visual cue: an accent line sweeps the top
+  of the workspace + a fading "updated" pill by the filename (`.reloaded` class,
+  auto-clears via a 1.1s timer).
+- **Reading font selector.** New `fonts.js` catalog (System / Sans / Serif / Mono) →
+  `--body-font` CSS var on `<html>`, applied to `.markdown-body`. Persisted like the
+  theme. Stacks list several concrete faces before a generic fallback — no bundled
+  webfonts (WebKitGTK only has system fonts). Font tunes the *preview*; the editor and
+  diff stay mono (they're source).
+- **Rendering spacing opened up** per feedback ("too little spacing"): body line-height
+  1.65→1.8, font 16→17px, measure 860→820px, bigger paragraph/heading/list/blockquote
+  margins, preview padding 32/40→44/56.
+- **Console launcher now detaches by default.** The `~/.local/bin/markm` wrapper runs
+  the binary under `setsid … &` + `disown` so `markm file.md` frees the shell prompt
+  and closing the shell won't kill the viewer (verified: launched process becomes its
+  own session leader, SID==PID, reparented off the wrapper). `--fg`/`--foreground` (or
+  `MARKM_FG=1`) keeps it attached. Only the console wrapper changed — the `.desktop`
+  Exec points straight at the binary and never held a terminal. Wrapper is generated
+  with `printf '%q'` for the APPDIR line + a quoted (`<<'EOF'`) heredoc body so runtime
+  `$@`/arrays aren't expanded at install time.
+
 ## 2026-07-03 — Folder sidebar + editor selection fix
 
 - **Feature:** folder sidebar — in-app **Folder** button opens a directory,

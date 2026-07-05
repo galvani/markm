@@ -143,6 +143,88 @@ export async function loadSetting(key) {
   }
 }
 
+// ---- Git integration (via os.execCommand) ----
+
+/** Directory of a file path. */
+function dirname(p) {
+  return p.slice(0, p.lastIndexOf('/')) || '/';
+}
+
+/** Single-quote a string for safe shell interpolation. */
+function shq(s) {
+  return `'${String(s).replace(/'/g, `'\\''`)}'`;
+}
+
+/** Run `git -C <dir> <args>`; returns { ok, out }. */
+async function execGit(dir, args) {
+  if (!N) return { ok: false, out: '' };
+  try {
+    const r = await N.os.execCommand(`git -C ${shq(dir)} ${args}`);
+    return { ok: r.exitCode === 0, out: r.stdOut ?? '' };
+  } catch {
+    return { ok: false, out: '' };
+  }
+}
+
+/** Whether a file is tracked in a git working tree. */
+export async function gitIsTracked(filePath) {
+  if (!N || !filePath) return false;
+  const dir = dirname(filePath);
+  const inside = await execGit(dir, 'rev-parse --is-inside-work-tree');
+  if (!inside.ok || inside.out.trim() !== 'true') return false;
+  const ls = await execGit(dir, `ls-files --error-unmatch ${shq(filePath)}`);
+  return ls.ok;
+}
+
+/**
+ * The file's content at HEAD (last commit). Returns null if there is no
+ * committed version yet (e.g. a newly added-but-uncommitted file).
+ */
+export async function gitHeadContent(filePath) {
+  if (!N || !filePath) return null;
+  const dir = dirname(filePath);
+  const rootR = await execGit(dir, 'rev-parse --show-toplevel');
+  if (!rootR.ok) return null;
+  const root = rootR.out.trim();
+  const rel = filePath.startsWith(root + '/') ? filePath.slice(root.length + 1) : filePath;
+  const show = await execGit(dir, `show ${shq('HEAD:' + rel)}`);
+  return show.ok ? show.out : null;
+}
+
+/**
+ * Watch a single file for external changes and invoke `onChange` when it is
+ * modified on disk. Neutralino watches directories, so we watch the containing
+ * folder and filter events down to the target filename. Returns an async
+ * cleanup function that removes the watcher and detaches the listener.
+ */
+export async function watchFile(filePath, onChange) {
+  if (!N || !filePath) return async () => {};
+  const dir = dirname(filePath);
+  const base = filePath.slice(filePath.lastIndexOf('/') + 1);
+  let watcherId = null;
+  const handler = (evt) => {
+    const d = evt?.detail || {};
+    // 'modified'/'add' both fire on a save; editors that write-then-rename may
+    // only surface the filename on one of them, so react to any name match.
+    if (d.filename === base) onChange();
+  };
+  try {
+    N.events.on('watchFile', handler);
+    watcherId = await N.filesystem.createWatcher(dir);
+  } catch {
+    N.events.off('watchFile', handler);
+    return async () => {};
+  }
+  return async () => {
+    try {
+      N.events.off('watchFile', handler);
+      if (watcherId != null) await N.filesystem.removeWatcher(watcherId);
+    } catch {
+      /* non-fatal */
+    }
+  };
+}
+
 /** Update the OS window title. */
 export async function setWindowTitle(title) {
   if (!N) {

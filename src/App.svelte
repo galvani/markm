@@ -1,13 +1,16 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import Editor from './lib/Editor.svelte';
   import Preview from './lib/Preview.svelte';
   import Sidebar from './lib/Sidebar.svelte';
+  import DiffView from './lib/DiffView.svelte';
   import { THEMES, DEFAULT_THEME, applyTheme } from './lib/themes.js';
+  import { FONTS, DEFAULT_FONT, applyFont } from './lib/fonts.js';
   import {
     initNative, launchFilePath, readTextFile, writeTextFile,
     pickOpenPath, pickSavePath, saveSetting, loadSetting, setWindowTitle,
     pickFolderPath, listMarkdownFiles, revealInFileManager,
+    gitIsTracked, gitHeadContent, watchFile,
   } from './lib/neu.js';
 
   const WELCOME = `# Welcome to markm
@@ -40,15 +43,23 @@ const hello = (who) => \`hi, \${who}\`;
   let content = $state(WELCOME);
   let mode = $state('view'); // 'view' | 'edit' | 'split'
   let themeId = $state(DEFAULT_THEME);
+  let fontId = $state(DEFAULT_FONT);
   let filePath = $state(null);
   let dirty = $state(false);
+  let reloaded = $state(false); // brief visual pulse after an on-disk auto-refresh
   let zoom = $state(1);
   let folderPath = $state(null);
   let folderFiles = $state([]);
   let sidebarOpen = $state(false);
+  let gitTracked = $state(false);
+  let previousContent = $state(null); // file content at HEAD (for the diff view)
 
   let fileName = $derived(filePath ? filePath.split('/').pop() : 'untitled.md');
   let folderName = $derived(folderPath ? folderPath.split('/').pop() : '');
+
+  // Active file-watcher cleanup + the pulse-reset timer (plain vars, not state).
+  let disposeWatcher = null;
+  let reloadTimer = null;
 
   // Keep the OS window title in sync with the open file + dirty state.
   $effect(() => {
@@ -62,6 +73,10 @@ const hello = (who) => \`hi, \${who}\`;
     const savedTheme = await loadSetting('theme');
     if (savedTheme) themeId = savedTheme;
     applyTheme(themeId);
+
+    const savedFont = await loadSetting('font');
+    if (savedFont) fontId = savedFont;
+    applyFont(fontId);
 
     const savedMode = await loadSetting('mode');
     if (savedMode) mode = savedMode;
@@ -81,6 +96,11 @@ const hello = (who) => \`hi, \${who}\`;
     // If launched with a file (xdg-open / file manager / CLI arg), open it.
     const launch = launchFilePath();
     if (launch) await openPath(launch);
+  });
+
+  onDestroy(() => {
+    if (reloadTimer) clearTimeout(reloadTimer);
+    if (disposeWatcher) disposeWatcher();
   });
 
   async function openFolder() {
@@ -135,6 +155,11 @@ const hello = (who) => \`hi, \${who}\`;
     saveSetting('theme', themeId);
   }
 
+  function changeFont(id) {
+    fontId = applyFont(id);
+    saveSetting('font', fontId);
+  }
+
   function setMode(m) {
     mode = m;
     saveSetting('mode', m);
@@ -146,6 +171,47 @@ const hello = (who) => \`hi, \${who}\`;
     content = text;
     filePath = path;
     dirty = false;
+    await refreshGit();
+    await armWatcher(path);
+  }
+
+  // (Re)install the on-disk watcher for the open file. Tears down any previous
+  // watcher first so we only ever track the currently-open file.
+  async function armWatcher(path) {
+    if (disposeWatcher) { await disposeWatcher(); disposeWatcher = null; }
+    disposeWatcher = await watchFile(path, () => reloadFromDisk(path));
+  }
+
+  // React to an external change to the open file. We never clobber unsaved
+  // edits: if the buffer is dirty we leave it alone. Otherwise reload — but only
+  // pulse when the bytes actually changed, so our own saves stay silent.
+  async function reloadFromDisk(path) {
+    if (path !== filePath || dirty) return;
+    const text = await readTextFile(path);
+    if (text === null || text === content) return;
+    content = text;
+    await refreshGit();
+    flashReloaded();
+  }
+
+  function flashReloaded() {
+    reloaded = true;
+    if (reloadTimer) clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(() => { reloaded = false; }, 1100);
+  }
+
+  // Refresh whether the open file is git-tracked (drives the "Changes" mode).
+  async function refreshGit() {
+    gitTracked = await gitIsTracked(filePath);
+    if (!gitTracked && mode === 'diff') mode = 'view';
+    else if (gitTracked && mode === 'diff') previousContent = await gitHeadContent(filePath);
+  }
+
+  // Enter the diff view, fetching the latest HEAD version. 'diff' is a transient
+  // mode — not persisted as a startup mode (startup needs a loaded, tracked file).
+  async function enterDiff() {
+    previousContent = await gitHeadContent(filePath);
+    mode = 'diff';
   }
 
   async function openFile() {
@@ -198,6 +264,9 @@ const hello = (who) => \`hi, \${who}\`;
     <div class="file">
       <span class="dot" class:dirty></span>
       <span class="name" title={filePath || ''}>{fileName}</span>
+      {#if reloaded}
+        <span class="reloaded-badge">updated</span>
+      {/if}
       {#if filePath}
         <button
           class="icon reveal"
@@ -212,6 +281,9 @@ const hello = (who) => \`hi, \${who}\`;
       <button class:active={mode === 'view'} onclick={() => setMode('view')}>View</button>
       <button class:active={mode === 'edit'} onclick={() => setMode('edit')}>Edit</button>
       <button class:active={mode === 'split'} onclick={() => setMode('split')}>Split</button>
+      {#if gitTracked}
+        <button class:active={mode === 'diff'} title="Changes vs last commit" onclick={enterDiff}>Changes</button>
+      {/if}
     </div>
 
     <div class="actions">
@@ -220,6 +292,16 @@ const hello = (who) => \`hi, \${who}\`;
         <button class="zoom-level" title="Reset zoom" onclick={() => applyZoom(1)}>{Math.round(zoom * 100)}%</button>
         <button aria-label="Zoom in" onclick={() => applyZoom(zoom + 0.1)}>+</button>
       </div>
+      <select
+        aria-label="Reading font"
+        title="Reading font"
+        value={fontId}
+        onchange={(e) => changeFont(e.currentTarget.value)}
+      >
+        {#each FONTS as f (f.id)}
+          <option value={f.id}>{f.name}</option>
+        {/each}
+      </select>
       <select
         aria-label="Theme"
         value={themeId}
@@ -235,20 +317,26 @@ const hello = (who) => \`hi, \${who}\`;
     </div>
   </header>
 
-  <div class="workspace">
+  <div class="workspace" class:reloaded>
     {#if sidebarOpen}
       <Sidebar {folderName} files={folderFiles} activePath={filePath} onSelect={openPath} />
     {/if}
     <main class="body" class:split={mode === 'split'}>
-      {#if mode === 'edit' || mode === 'split'}
-        <section class="pane editor-pane">
-          <Editor value={content} onChange={onEditorChange} />
+      {#if mode === 'diff'}
+        <section class="pane">
+          <DiffView previous={previousContent} current={content} />
         </section>
-      {/if}
-      {#if mode === 'view' || mode === 'split'}
-        <section class="pane preview-pane">
-          <Preview source={content} />
-        </section>
+      {:else}
+        {#if mode === 'edit' || mode === 'split'}
+          <section class="pane editor-pane">
+            <Editor value={content} onChange={onEditorChange} />
+          </section>
+        {/if}
+        {#if mode === 'view' || mode === 'split'}
+          <section class="pane preview-pane">
+            <Preview source={content} />
+          </section>
+        {/if}
       {/if}
     </main>
   </div>
@@ -267,6 +355,45 @@ const hello = (who) => \`hi, \${who}\`;
     flex: 1;
     min-height: 0;
     display: flex;
+    position: relative;
+  }
+  /* On an on-disk auto-refresh, a thin accent line sweeps across the top of the
+     content area — a calm "this just reloaded" cue that needs no dismissing. */
+  .workspace.reloaded::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+    z-index: 5;
+    animation: reload-sweep 1.1s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes reload-sweep {
+    0% { opacity: 0; transform: scaleX(0); transform-origin: left; }
+    25% { opacity: 1; transform: scaleX(1); transform-origin: left; }
+    100% { opacity: 0; transform: scaleX(1); transform-origin: left; }
+  }
+
+  .reloaded-badge {
+    flex: none;
+    font-size: 10px;
+    line-height: 1;
+    padding: 3px 6px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-fg);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    animation: badge-fade 1.1s ease-out forwards;
+  }
+  @keyframes badge-fade {
+    0% { opacity: 0; transform: translateY(-2px); }
+    15% { opacity: 1; transform: translateY(0); }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
   }
 
   .toolbar {

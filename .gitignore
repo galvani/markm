@@ -16,3 +16,6 @@ neutralino.log
 *.log
 .env
 .DS_Store
+
+# Serena tool cache (local editor/agent index, not source)
+.serena/

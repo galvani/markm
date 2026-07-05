@@ -44,10 +44,33 @@ install -m644 "$REPO_DIR/mime/markm-markdown.xml" "$MIMEPKGS/markm-markdown.xml"
 
 # Convenience launcher on PATH. Neutralino resolves resources.neu relative to
 # --path, so we pass the app dir explicitly; that way markm works from any CWD.
-cat > "$BINDIR/markm" <<EOF
-#!/bin/sh
-exec "$APPDIR/markm" --path="$APPDIR" "\$@"
+# By default it detaches from the terminal so `markm file.md` frees the prompt;
+# --fg (or MARKM_FG=1) keeps it in the foreground. The APPDIR assignment is
+# written with %q so the rest of the body can be a verbatim (unexpanded) heredoc.
+{
+  printf '#!/usr/bin/env bash\n'
+  printf 'APPDIR=%q\n' "$APPDIR"
+  cat <<'EOF'
+# --fg / MARKM_FG=1 keeps markm attached to the terminal; otherwise detach so the
+# shell returns immediately and closing it won't kill the viewer.
+fg="${MARKM_FG:-0}"
+args=()
+for a in "$@"; do
+  case "$a" in
+    --fg|--foreground) fg=1 ;;
+    *) args+=("$a") ;;
+  esac
+done
+
+if [ "$fg" = "1" ]; then
+  exec "$APPDIR/markm" --path="$APPDIR" "${args[@]}"
+fi
+
+# New session (no controlling tty), stdio detached, backgrounded and disowned.
+setsid "$APPDIR/markm" --path="$APPDIR" "${args[@]}" >/dev/null 2>&1 </dev/null &
+disown 2>/dev/null || true
 EOF
+} > "$BINDIR/markm"
 chmod 755 "$BINDIR/markm"
 
 # Desktop entry from the template (absolute Exec path; --path=app dir so the
