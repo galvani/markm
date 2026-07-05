@@ -4,14 +4,18 @@
   import Preview from './lib/Preview.svelte';
   import Sidebar from './lib/Sidebar.svelte';
   import DiffView from './lib/DiffView.svelte';
+  import Chooser from './lib/Chooser.svelte';
   import { THEMES, DEFAULT_THEME, applyTheme } from './lib/themes.js';
   import { FONTS, DEFAULT_FONT, applyFont } from './lib/fonts.js';
   import {
     initNative, launchFilePath, readTextFile, writeTextFile,
     pickOpenPath, pickSavePath, saveSetting, loadSetting, setWindowTitle,
     pickFolderPath, listMarkdownFiles, revealInFileManager,
-    gitIsTracked, gitHeadContent, watchFile,
+    gitIsTracked, gitHeadContent, watchFile, exitApp,
+    pathStat, listMarkdownFilesWithStats, openExternal,
   } from './lib/neu.js';
+
+  const MD_RE = /\.(md|markdown|mdown|mkd|mkdn)$/i;
 
   const WELCOME = `# Welcome to markm
 
@@ -20,8 +24,9 @@ A fast, native markdown viewer with an **edit mode** and lots of themes.
 ## Try it
 
 - Toggle **View / Edit / Split** in the toolbar
-- Switch the **theme** on the right — everything restyles live
-- Open a file with **Open** (or \`xdg-open file.md\` once installed)
+- Switch the **theme** and **reading font** on the right — everything restyles live
+- Open a file with **Open**, or a whole folder with **Folder** (or \`xdg-open file.md\` / \`markm .\` once installed)
+- Links are clickable — external ones open in your browser, local \`.md\` files open here
 
 \`\`\`js
 // code blocks are highlighted too
@@ -35,6 +40,9 @@ const hello = (who) => \`hi, \${who}\`;
 | Ctrl+E   | Toggle edit |
 | Ctrl+S   | Save   |
 | Ctrl+O   | Open   |
+| Ctrl +/− | Zoom in / out |
+| Ctrl+0   | Reset zoom |
+| Esc      | Close markm (in View mode) |
 `;
 
   const ZOOM_MIN = 0.5;
@@ -46,13 +54,17 @@ const hello = (who) => \`hi, \${who}\`;
   let fontId = $state(DEFAULT_FONT);
   let filePath = $state(null);
   let dirty = $state(false);
-  let reloaded = $state(false); // brief visual pulse after an on-disk auto-refresh
+  let reloaded = $state(false); // brief "updated" badge after an on-disk auto-refresh
+  let refreshTick = $state(0); // bumped only on an external reload → Preview pulses changed blocks
   let zoom = $state(1);
   let folderPath = $state(null);
   let folderFiles = $state([]);
   let sidebarOpen = $state(false);
   let gitTracked = $state(false);
   let previousContent = $state(null); // file content at HEAD (for the diff view)
+  let chooserOpen = $state(false); // directory-launch markdown picker
+  let chooserDir = $state('');
+  let chooserFiles = $state([]);
 
   let fileName = $derived(filePath ? filePath.split('/').pop() : 'untitled.md');
   let folderName = $derived(folderPath ? folderPath.split('/').pop() : '');
@@ -93,10 +105,30 @@ const hello = (who) => \`hi, \${who}\`;
     }
     sidebarOpen = (await loadSetting('sidebarOpen')) === '1' && !!folderPath;
 
-    // If launched with a file (xdg-open / file manager / CLI arg), open it.
+    // If launched with a path (xdg-open / file manager / CLI arg): a directory
+    // (e.g. `markm .` or `markm /tmp`) opens the picker; a file opens directly.
     const launch = launchFilePath();
-    if (launch) await openPath(launch);
+    if (launch) {
+      const st = await pathStat(launch);
+      if (st?.isDirectory) await openChooser(launch);
+      else await openPath(launch);
+    }
   });
+
+  // Show the markdown picker for a directory. Also primes the folder sidebar so
+  // switching files stays available after a pick.
+  async function openChooser(dir) {
+    chooserDir = dir;
+    chooserFiles = await listMarkdownFilesWithStats(dir);
+    folderPath = dir;
+    folderFiles = await listMarkdownFiles(dir);
+    chooserOpen = true;
+  }
+
+  async function pickFromChooser(path) {
+    chooserOpen = false;
+    await openPath(path);
+  }
 
   onDestroy(() => {
     if (reloadTimer) clearTimeout(reloadTimer);
@@ -191,6 +223,7 @@ const hello = (who) => \`hi, \${who}\`;
     if (text === null || text === content) return;
     content = text;
     await refreshGit();
+    refreshTick++; // tells Preview to pulse whatever blocks changed
     flashReloaded();
   }
 
@@ -237,7 +270,55 @@ const hello = (who) => \`hi, \${who}\`;
     dirty = true;
   }
 
+  // Route a clicked preview link. External URLs go to the system browser;
+  // in-page anchors scroll; local markdown opens in the viewer; anything else
+  // local is handed to the OS default handler.
+  async function onLink(href) {
+    if (!href) return;
+    if (/^(https?:|mailto:|tel:)/i.test(href)) { openExternal(href); return; }
+    if (href.startsWith('#')) {
+      const el = document.getElementById(decodeURIComponent(href.slice(1)));
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    const abs = resolveLocal(href);
+    const st = await pathStat(abs);
+    if (st?.isDirectory) { await openChooser(abs); return; }
+    if (MD_RE.test(abs)) { await openPath(abs); return; }
+    openExternal(abs); // images, PDFs, etc.
+  }
+
+  // Resolve a link target (possibly relative / file://) against the open file's
+  // directory into an absolute, normalised path.
+  function resolveLocal(href) {
+    let p = href;
+    try { p = decodeURI(href); } catch { /* leave as-is */ }
+    if (p.startsWith('file://')) p = p.slice(7);
+    p = p.split(/[?#]/)[0]; // drop any query/fragment
+    if (p.startsWith('/')) return normalizePath(p);
+    const baseDir = filePath ? filePath.slice(0, filePath.lastIndexOf('/')) : (folderPath || '');
+    return normalizePath(`${baseDir}/${p}`);
+  }
+
+  // Collapse '.' and '..' segments in an absolute path (no filesystem access).
+  function normalizePath(p) {
+    const out = [];
+    for (const seg of p.split('/')) {
+      if (seg === '' || seg === '.') continue;
+      if (seg === '..') out.pop();
+      else out.push(seg);
+    }
+    return '/' + out.join('/');
+  }
+
   function onKey(e) {
+    // Esc closes the picker if it's open; otherwise it quits, but only in
+    // read-only View mode — never mid-edit, so an errant Esc while typing (or in
+    // Split/Diff) can't discard work by closing.
+    if (e.key === 'Escape') {
+      if (chooserOpen) { e.preventDefault(); chooserOpen = false; return; }
+      if (mode === 'view') { e.preventDefault(); exitApp(); return; }
+    }
     const mod = e.ctrlKey || e.metaKey;
     if (!mod) return;
     if (e.key === 's') { e.preventDefault(); save(); }
@@ -317,12 +398,16 @@ const hello = (who) => \`hi, \${who}\`;
     </div>
   </header>
 
-  <div class="workspace" class:reloaded>
+  <div class="workspace">
     {#if sidebarOpen}
       <Sidebar {folderName} files={folderFiles} activePath={filePath} onSelect={openPath} />
     {/if}
-    <main class="body" class:split={mode === 'split'}>
-      {#if mode === 'diff'}
+    <main class="body" class:split={mode === 'split' && !chooserOpen}>
+      {#if chooserOpen}
+        <section class="pane">
+          <Chooser dir={chooserDir} files={chooserFiles} onPick={pickFromChooser} onClose={() => (chooserOpen = false)} />
+        </section>
+      {:else if mode === 'diff'}
         <section class="pane">
           <DiffView previous={previousContent} current={content} />
         </section>
@@ -334,7 +419,7 @@ const hello = (who) => \`hi, \${who}\`;
         {/if}
         {#if mode === 'view' || mode === 'split'}
           <section class="pane preview-pane">
-            <Preview source={content} />
+            <Preview source={content} {onLink} pulseTick={refreshTick} scrollKey={filePath || ''} />
           </section>
         {/if}
       {/if}
@@ -355,26 +440,6 @@ const hello = (who) => \`hi, \${who}\`;
     flex: 1;
     min-height: 0;
     display: flex;
-    position: relative;
-  }
-  /* On an on-disk auto-refresh, a thin accent line sweeps across the top of the
-     content area — a calm "this just reloaded" cue that needs no dismissing. */
-  .workspace.reloaded::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--accent);
-    z-index: 5;
-    animation: reload-sweep 1.1s ease-out forwards;
-    pointer-events: none;
-  }
-  @keyframes reload-sweep {
-    0% { opacity: 0; transform: scaleX(0); transform-origin: left; }
-    25% { opacity: 1; transform: scaleX(1); transform-origin: left; }
-    100% { opacity: 0; transform: scaleX(1); transform-origin: left; }
   }
 
   .reloaded-badge {

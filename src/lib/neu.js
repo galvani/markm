@@ -99,6 +99,40 @@ export async function listMarkdownFiles(dir) {
   }
 }
 
+/** Stat a path; returns { isFile, isDirectory, size, modifiedAt } or null. */
+export async function pathStat(path) {
+  if (!N || !path) return null;
+  try {
+    return await N.filesystem.getStats(path);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Like listMarkdownFiles, but stats each entry so the chooser can sort by
+ * modified time / size. modifiedAt is epoch ms (0 if it couldn't be read).
+ */
+export async function listMarkdownFilesWithStats(dir) {
+  const base = await listMarkdownFiles(dir);
+  const out = [];
+  for (const f of base) {
+    const st = await pathStat(f.path);
+    out.push({ ...f, modifiedAt: st?.modifiedAt ?? 0, size: st?.size ?? 0 });
+  }
+  return out;
+}
+
+/** Open a URL or path with the OS default handler (browser, image viewer, …). */
+export async function openExternal(target) {
+  if (!N || !target) return;
+  try {
+    await N.os.open(target);
+  } catch {
+    /* non-fatal */
+  }
+}
+
 /** Open the OS file manager at a file's containing folder (reveal). */
 export async function revealInFileManager(filePath) {
   if (!N || !filePath) return;
@@ -223,6 +257,16 @@ export async function watchFile(filePath, onChange) {
       /* non-fatal */
     }
   };
+}
+
+/** Quit the application. */
+export async function exitApp() {
+  if (!N) return;
+  try {
+    await N.app.exit();
+  } catch {
+    /* non-fatal */
+  }
 }
 
 /** Update the OS window title. */

@@ -35,8 +35,8 @@ bin/                     Neutralino binaries (gitignored; from `neu update`)
 ## Fast dev / verify recipe
 
 ```bash
-export PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$PATH"   # Node is via nvm
-export XDG_RUNTIME_DIR=/run/user/1000                       # for the GUI
+# Ensure Node 20+ is on PATH (built with Node 22; nvm or a system install)
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"                 # for the GUI
 pnpm install
 pnpm build                       # vite -> dist/  (must succeed clean)
 pnpm exec neu run --disable-auto-reload   # launches the native window

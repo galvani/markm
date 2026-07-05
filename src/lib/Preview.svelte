@@ -1,7 +1,12 @@
 <script>
   import MarkdownIt from 'markdown-it';
+  import { onMount } from 'svelte';
+  import { saveSetting, loadSetting } from './neu.js';
 
-  let { source = '' } = $props();
+  // pulseTick bumps (from App) only on an on-disk auto-refresh; when it changes
+  // we flash whichever rendered blocks are new vs the previous render.
+  // scrollKey = the open file's path; scroll position is remembered per key.
+  let { source = '', onLink, pulseTick = 0, scrollKey = '' } = $props();
 
   // html:false keeps raw embedded HTML inert — a viewer opening arbitrary
   // files shouldn't execute markup it was handed. linkify/typographer add the
@@ -9,9 +14,103 @@
   const md = new MarkdownIt({ html: false, linkify: true, typographer: true });
 
   let html = $derived(md.render(source || ''));
+
+  let el; // the preview pane element
+
+  // Reading-font auto-scale. Rather than cap the window width, we keep the line
+  // length readable by GROWING the font once the pane is wider than BASE_PANE
+  // (so a wide/fullscreen window shows bigger text, ~constant chars-per-line).
+  // Below BASE_PANE the font stays at BASE_FONT. Measuring the pane's own width
+  // (not the viewport) makes this correct in split mode and with the sidebar
+  // open; measuring in layout px also cancels the app's zoom transform cleanly.
+  const BASE_FONT = 17; // px at/under BASE_PANE
+  const BASE_PANE = 932; // px pane width giving the intended measure (~820px text)
+  const MAX_FONT = 40; // px ceiling so extreme widths don't produce silly text
+  function fitFont() {
+    if (!el) return;
+    const size = Math.min(MAX_FONT, Math.max(BASE_FONT, (BASE_FONT * el.clientWidth) / BASE_PANE));
+    el.style.setProperty('--reading-font', `${size.toFixed(1)}px`);
+  }
+
+  onMount(() => {
+    fitFont();
+    const ro = new ResizeObserver(fitFont);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+
+  // Pulse changed blocks on refresh. Runs after each render (depends on `html`),
+  // but only flashes when `pulseTick` has advanced — so live typing in Split mode
+  // never pulses, only an on-disk auto-refresh does. A block is "new" when its
+  // trimmed text isn't among the previous render's block texts.
+  let prevBlockText = new Set();
+  let lastPulseTick = -1;
+  $effect(() => {
+    html; // re-run when the rendered output changes
+    const tick = pulseTick;
+    if (!el) return;
+    const doPulse = lastPulseTick !== -1 && tick !== lastPulseTick;
+    const next = new Set();
+    for (const block of el.children) {
+      const t = block.textContent.trim();
+      if (t) next.add(t);
+      if (doPulse && t && !prevBlockText.has(t)) {
+        block.classList.remove('pulse-new'); // restart the animation if re-hit
+        void block.offsetWidth; // force reflow so the re-added class re-triggers
+        block.classList.add('pulse-new');
+      }
+    }
+    prevBlockText = next;
+    lastPulseTick = tick;
+  });
+
+  // --- Per-file scroll memory ---
+  // Store position as a RATIO (0..1) rather than px so it survives reflow from a
+  // different window width / reading-font. Restore only when the file changes
+  // (tracked via restoredKey), so typing/auto-refresh in the same file doesn't
+  // yank the view back.
+  let restoredKey = null;
+  let scrollTimer;
+  function saveScroll() {
+    if (!el || !scrollKey) return;
+    const room = el.scrollHeight - el.clientHeight;
+    saveSetting(`scroll:${scrollKey}`, String(room > 0 ? el.scrollTop / room : 0));
+  }
+  function onScroll() {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(saveScroll, 200); // debounce persistence
+  }
+  async function restoreScroll(key) {
+    const ratio = parseFloat(await loadSetting(`scroll:${key}`));
+    if (!el || key !== scrollKey || !Number.isFinite(ratio)) return;
+    // Two rAFs: let the render + reading-font layout settle before measuring.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (key === scrollKey) el.scrollTop = ratio * (el.scrollHeight - el.clientHeight);
+      }),
+    );
+  }
+  $effect(() => {
+    html; // re-run once the new file's content is rendered
+    const key = scrollKey;
+    if (key && key !== restoredKey) {
+      restoredKey = key;
+      restoreScroll(key);
+    }
+  });
+
+  // Delegate anchor clicks up to the app: a bare <a> would navigate the webview
+  // itself (blanking the app), so we always preventDefault and let App route the
+  // href — external links to the browser, local .md files back into the viewer.
+  function handleClick(e) {
+    const a = e.target.closest?.('a');
+    if (!a) return;
+    e.preventDefault();
+    onLink?.(a.getAttribute('href'));
+  }
 </script>
 
-<div class="preview markdown-body">
+<div class="preview markdown-body" bind:this={el} onclick={handleClick} onscroll={onScroll}>
   {@html html}
 </div>
 
@@ -21,5 +120,24 @@
     overflow: auto;
     padding: 44px 56px;
     box-sizing: border-box;
+  }
+
+  /* Newly-changed blocks after an auto-refresh wash with the insertion tint
+     (same green as the diff view) so the eye lands on what changed, then settle
+     into a subtle persistent tint that stays until the next change. */
+  .preview :global(.pulse-new) {
+    animation: pulse-new 3.2s ease-out forwards;
+    border-radius: 4px;
+    margin-inline: -8px; /* extend the tint sideways without shifting text */
+    padding-inline: 8px;
+  }
+  @keyframes pulse-new {
+    0%,
+    22% {
+      background-color: var(--diff-ins-bg);
+    }
+    100% {
+      background-color: var(--pulse-persist-bg);
+    }
   }
 </style>

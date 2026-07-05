@@ -58,7 +58,10 @@ args=()
 for a in "$@"; do
   case "$a" in
     --fg|--foreground) fg=1 ;;
-    *) args+=("$a") ;;
+    -*) args+=("$a") ;;
+    # Resolve an existing path (e.g. '.', 'notes', '/tmp') to absolute so the
+    # detached app — which no longer shares this shell's CWD — can find it.
+    *) [ -e "$a" ] && a="$(realpath "$a" 2>/dev/null || printf '%s' "$a")"; args+=("$a") ;;
   esac
 done
 

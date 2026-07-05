@@ -92,6 +92,9 @@ export function applyTheme(id) {
   const root = document.documentElement;
   for (const [k, v] of Object.entries(theme.vars)) root.style.setProperty(k, v);
   root.dataset.theme = theme.id;
+  // Light/dark discriminator (theme.id alone doesn't say which) — CSS keys the
+  // refresh-pulse's persistent tint off this.
+  root.dataset.mode = theme.dark ? 'dark' : 'light';
   root.style.colorScheme = theme.dark ? 'dark' : 'light';
   return theme.id;
 }

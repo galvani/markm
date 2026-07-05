@@ -2,6 +2,70 @@
 
 Newest first. Decisions, rationale, and gotchas worth not re-deriving.
 
+## 2026-07-05 — Prose typography, refresh-pulse polish, per-file scroll memory
+
+- **Markdown restyle → Tailwind `prose`-derived typography.** The old look was
+  github-markdown-css (which Jan disliked). Replaced with the `prose` type scale +
+  vertical rhythm (h1 2.25em/800, h2 1.5em, em-relative margins, 1.75 line-height),
+  recolored through the theme vars. Dropped GitHub-isms: heading underlines and
+  boxed table cells (now header rule + row dividers). Chosen over Tufte/serif after
+  a websearch + a direction pick.
+- **Refresh pulse polish.** Longer (3.2s) and it no longer fades to nothing — a
+  changed block settles into a **persistent, theme-aware tint** (lighter wash in
+  dark mode, darker in light) that marks it until the next change. Driven by
+  `--pulse-persist-bg`, keyed off a new `data-mode` (light/dark) on `<html>` set by
+  `applyTheme`. Pulse fires only when `pulseTick` (bumped on external reload)
+  advances, so live typing never pulses.
+- **Per-file scroll memory.** `Preview.svelte` stores scroll as a **ratio** (per
+  file path, via `saveSetting('scroll:<path>')`) so it survives reflow from a
+  different width/font, and restores only when the file changes (guarded by
+  `restoredKey`) — content edits/auto-refresh don't yank the view.
+
+## 2026-07-05 — Content fills window; reading font auto-scales with width
+
+- Dropped the `.markdown-body` `max-width: 820px; margin: 0 auto` centered column
+  so the rendered content **fills the window and grows with it** (no letter-boxed
+  side margins).
+- **Readability via font auto-scale, not a window cap.** First attempt capped the
+  window width (`maxWidth`) — rejected because it (a) forbade fullscreen and (b)
+  hit a GTK trap (below). Final approach: the window resizes freely (fullscreen
+  allowed) and `Preview.svelte` **grows the reading font once the pane exceeds
+  `BASE_PANE` (932px)** via a `ResizeObserver`, keeping chars-per-line roughly
+  constant. `--reading-font` = `clamp(17px … 40px)` scaled by pane width. Measures
+  the **pane** (not the viewport) so it's correct in split mode / with the sidebar,
+  and measuring in layout px cancels the zoom transform. Default window width 1100
+  → **960**.
+- **GTK GOTCHA (from the abandoned cap):** setting `maxWidth` WITHOUT `maxHeight`
+  locks the window from resizing on **both** axes — GTK geometry hints treat a
+  missing `max_height` as 0. If you ever set `maxWidth`, you MUST also send a large
+  `maxHeight`. (Now moot since we don't cap, but keep in mind for any future
+  window-size constraint.)
+- Welcome doc now lists the full shortcut set incl. **Esc** (close in View mode)
+  and zoom keys.
+
+## 2026-07-05 — Clickable links, directory-launch picker, Esc-to-close
+
+- **Clickable preview links.** A bare `<a>` in the webview would navigate the
+  WebKit view itself (blanking the app), so `Preview.svelte` delegates anchor
+  clicks up to `App.onLink()` with `preventDefault`. Routing: http(s)/mailto/tel
+  → system browser (`os.open`); `#anchor` → in-page `scrollIntoView`; a local
+  `.md` → open in the viewer; any other local target → OS default handler.
+  Relative/`file://` targets are resolved against the open file's dir and
+  `.`/`..`-normalised in JS (no fs access).
+- **Directory argument opens a picker.** `markm .` / `markm /tmp` (or a folder
+  via a file manager) now shows `Chooser.svelte` — a full-pane list of the
+  markdown files in that dir with **type-to-filter** (Enter opens the top match)
+  and a **sort toggle: Modified (default, newest-first) / Name**. Launch handling
+  stats the arg (`pathStat`) to branch dir-vs-file; `listMarkdownFilesWithStats`
+  stats each entry for the modified-time sort. Opening the chooser also primes the
+  folder sidebar.
+- **Wrapper resolves relative path args.** Because the launcher detaches (no shared
+  CWD), the wrapper now `realpath`s any existing non-flag arg to absolute before
+  handing it to the binary — so `.` resolves against the *shell's* CWD, not the
+  app's.
+- **Esc.** Closes the picker if open; else quits, but only in read-only View mode
+  (never in Edit/Split/Diff, so a stray Esc can't discard work).
+
 ## 2026-07-05 — Git Changes view, live auto-refresh, reading font, console detach
 
 - **Git "Changes" view** (task #12): word-level diff of the working buffer vs the
