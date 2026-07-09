@@ -52,6 +52,20 @@ There is no test suite yet; "verify" = `pnpm build` is clean **and** the app
 launches and renders. When changing packaging, also run `install.sh` and
 `desktop-file-validate ~/.local/share/applications/markm.desktop`.
 
+Important: `markm <file>` runs the installed bundle in `~/.local/share/markm`,
+not the freshly compiled `dist/` tree. After every build meant to affect local
+usage, also refresh and smoke-test the installed app:
+
+```bash
+pnpm exec neu build --release
+scripts/install.sh
+timeout 5s /home/jan/.local/bin/markm --fg BUILD.md
+```
+
+Do this before claiming a toolbar/zoom/native-launch fix is verified; otherwise
+you may only have tested the source build while the installed command is still
+serving an old `resources.neu`.
+
 ## Conventions
 
 - Theme everything through **CSS custom properties** (see `themes.js`). Never
