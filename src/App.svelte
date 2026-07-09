@@ -473,8 +473,8 @@ const hello = (who) => \`hi, \${who}\`;
   .toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 3px 10px;
+    gap: 12px;
+    padding: 6px 12px;
     background: var(--panel);
     color: var(--panel-fg);
     border-bottom: 1px solid var(--border);
@@ -493,11 +493,11 @@ const hello = (who) => \`hi, \${who}\`;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: 14px;
   }
   .dot {
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     background: transparent;
     border: 1px solid var(--muted);
@@ -514,8 +514,8 @@ const hello = (who) => \`hi, \${who}\`;
   }
 
   .icon {
-    padding: 0 9px;
-    font-size: 14px;
+    padding: 0 10px;
+    font-size: 16px;
     line-height: 1;
     flex: none;
   }
@@ -525,9 +525,9 @@ const hello = (who) => \`hi, \${who}\`;
     border-color: var(--accent);
   }
   .reveal {
-    height: 20px;
-    padding: 0 6px;
-    font-size: 12px;
+    height: 24px;
+    padding: 0 7px;
+    font-size: 13px;
     color: var(--muted);
   }
 
@@ -544,8 +544,8 @@ const hello = (who) => \`hi, \${who}\`;
   button,
   select {
     font: inherit;
-    font-size: 12px;
-    height: 26px;
+    font-size: 14px;
+    height: 34px;
     box-sizing: border-box;
     padding: 0 10px;
     line-height: normal;
@@ -560,7 +560,7 @@ const hello = (who) => \`hi, \${who}\`;
   .zoom {
     display: flex;
     align-items: stretch;
-    height: 26px;
+    height: 34px;
     box-sizing: border-box;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -574,12 +574,12 @@ const hello = (who) => \`hi, \${who}\`;
   }
   .modes button {
     border-right: 1px solid var(--border);
-    padding: 0 12px;
+    padding: 0 14px;
   }
   .modes button:last-child { border-right: none; }
-  .zoom button { padding: 0 10px; }
+  .zoom button { padding: 0 12px; }
   .zoom .zoom-level {
-    min-width: 46px;
+    min-width: 56px;
     display: flex;
     align-items: center;
     justify-content: center;
