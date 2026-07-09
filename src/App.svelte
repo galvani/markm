@@ -473,8 +473,8 @@ const hello = (who) => \`hi, \${who}\`;
   .toolbar {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 6px 12px;
+    gap: 14px;
+    padding: 8px 14px;
     background: var(--panel);
     color: var(--panel-fg);
     border-bottom: 1px solid var(--border);
@@ -493,11 +493,11 @@ const hello = (who) => \`hi, \${who}\`;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 14px;
+    font-size: 16px;
   }
   .dot {
-    width: 9px;
-    height: 9px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     background: transparent;
     border: 1px solid var(--muted);
@@ -514,8 +514,8 @@ const hello = (who) => \`hi, \${who}\`;
   }
 
   .icon {
-    padding: 0 10px;
-    font-size: 16px;
+    padding: 0 12px;
+    font-size: 18px;
     line-height: 1;
     flex: none;
   }
@@ -525,9 +525,9 @@ const hello = (who) => \`hi, \${who}\`;
     border-color: var(--accent);
   }
   .reveal {
-    height: 24px;
-    padding: 0 7px;
-    font-size: 13px;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 15px;
     color: var(--muted);
   }
 
@@ -544,10 +544,10 @@ const hello = (who) => \`hi, \${who}\`;
   button,
   select {
     font: inherit;
-    font-size: 14px;
-    height: 34px;
+    font-size: 16px;
+    height: 40px;
     box-sizing: border-box;
-    padding: 0 10px;
+    padding: 0 14px;
     line-height: normal;
     background: var(--bg);
     color: var(--fg);
@@ -560,7 +560,7 @@ const hello = (who) => \`hi, \${who}\`;
   .zoom {
     display: flex;
     align-items: stretch;
-    height: 34px;
+    height: 40px;
     box-sizing: border-box;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -574,12 +574,12 @@ const hello = (who) => \`hi, \${who}\`;
   }
   .modes button {
     border-right: 1px solid var(--border);
-    padding: 0 14px;
+    padding: 0 16px;
   }
   .modes button:last-child { border-right: none; }
-  .zoom button { padding: 0 12px; }
+  .zoom button { padding: 0 14px; }
   .zoom .zoom-level {
-    min-width: 56px;
+    min-width: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
