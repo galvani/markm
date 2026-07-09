@@ -37,8 +37,9 @@ themes, fast (native shell, no bundled browser), and standalone.
   reading font auto-scales with pane width (content fills the window).
 - **Clickable links** — external → browser, local `.md` → viewer, `#anchor` → scroll.
 - A **folder sidebar** switches between markdown files in the current directory.
-- **Zoom** in/out/reset (keyboard + toolbar), scaling the entire UI. **Esc** closes
-  (in View mode / the picker).
+- **Zoom** in/out/reset (keyboard + toolbar), scaling the document workspace
+  while keeping the toolbar/chrome at native size. **Esc** closes (in View mode /
+  the picker).
 - **Persists** theme, reading font, zoom, view mode, folder + sidebar state, and
   **scroll position per file** between launches (Neutralino storage).
 - The console launcher **detaches** from the terminal by default (`--fg` to stay).
@@ -108,12 +109,18 @@ storage).
 
 - `neu build --release` emits `dist/markm/markm-linux_x64` + `resources.neu`
   (the web bundle). Those two side-by-side **are** the distributable.
+- `scripts/package-macos-app.sh` runs on macOS and wraps the Neutralino macOS
+  binary + `resources.neu` into `dist/macos/markm.app` with a standard
+  `Contents/Info.plist`, launcher, and generated `appIcon.icns`.
 - **Node is never shipped** — build-time only.
 - Runtime dependency on the target: system WebKitGTK (declare
   `libwebkit2gtk-4.1-0` in a `.deb`).
 - `scripts/install.sh` does a local (`~/.local`) install: app files, a
   `text/markdown` MIME package, an icon, a `.desktop` entry, and sets markm as
   the default markdown handler. Launch is CWD-independent via `--path=<appdir>`.
+- macOS `.app` packaging uses the same `--path` rule through a tiny
+  `Contents/MacOS/markm` launcher so Finder's arbitrary CWD cannot break
+  `resources.neu` lookup. The bundle is unsigned/not notarized.
 
 ## Constraints
 

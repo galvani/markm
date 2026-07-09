@@ -10,7 +10,8 @@
     "app": "neu run",
     "start": "vite build && neu run",
     "neu:update": "neu update",
-    "package": "vite build && neu build --release"
+    "package": "vite build && neu build --release",
+    "package:macos-app": "scripts/package-macos-app.sh"
   },
   "devDependencies": {
     "@neutralinojs/neu": "^11.3.0",

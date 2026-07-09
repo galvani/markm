@@ -1,6 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/neutralinojs/neutralinojs/main/schemas/neutralino.config.schema.json",
   "applicationId": "app.markm",
+  "applicationName": "markm",
+  "description": "A fast, themeable native markdown viewer with an edit mode",
+  "applicationIcon": "public/icons/appIcon.png",
   "version": "0.1.0",
   "defaultMode": "window",
   "port": 0,

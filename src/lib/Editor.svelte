@@ -9,9 +9,10 @@
   // Tracks the last value we know the editor holds, so an external `value`
   // change (a file load) pushes into CodeMirror, but the user's own typing
   // (which flows out through onChange) doesn't loop back and reset the cursor.
-  let lastKnown = value;
+  let lastKnown = '';
 
   onMount(() => {
+    lastKnown = value;
     view = createEditor(el, {
       doc: value,
       onChange: (v) => {

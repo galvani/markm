@@ -2,6 +2,34 @@
 
 Newest first. Decisions, rationale, and gotchas worth not re-deriving.
 
+## 2026-07-09 — macOS `.app` packaging path
+
+- **Decision:** `.app` is enough for now; no `.dmg`, signing, or notarization
+  workflow yet.
+- **Implementation:** `scripts/package-macos-app.sh` must run on macOS. It builds
+  the web bundle, runs `neu build --release`, generates `appIcon.icns` from
+  `public/icons/appIcon.png` via `sips`/`iconutil`, and creates
+  `dist/macos/markm.app` with `Contents/Info.plist`.
+- **Gotcha:** current `neu build --macos-bundle` only renames the macOS binary to
+  `*.app`; it does not create a normal Finder bundle. The project script builds
+  the `Contents/...` structure itself.
+- **Gotcha:** Finder launches apps with an arbitrary CWD, so the bundle's
+  `CFBundleExecutable` is a tiny launcher that executes `markm-bin` with
+  `--path="$APPDIR"` to keep `resources.neu` lookup CWD-independent.
+
+## 2026-07-09 — Zoom leaves toolbar unscaled
+
+- **Decision:** zoom applies to the document workspace only. The toolbar/chrome
+  stays native-sized so controls do not grow/shrink when reading zoom changes.
+- **Implementation:** `applyZoom` targets `#zoom-surface` inside `.workspace`,
+  not the Svelte mount root. The surface keeps the existing WebKitGTK-compatible
+  `transform: scale()` + inverse width/height trick, but its height is relative
+  to the workspace (`%`), not the full viewport (`vh`), because the toolbar now
+  lives outside the scaled surface.
+- **Regression guard:** do not move the zoom transform back to `#app`; that
+  scales the toolbar and reintroduces the CodeMirror transformed-ancestor trap at
+  the app root.
+
 ## 2026-07-05 — Prose typography, refresh-pulse polish, per-file scroll memory
 
 - **Markdown restyle → Tailwind `prose`-derived typography.** The old look was
@@ -146,9 +174,9 @@ didn't have** — drove several pivots:
 ### Gotchas discovered (don't re-learn these)
 
 - **WebKitGTK does NOT support the CSS `zoom` property** (that's a Blink/Chrome
-  extension). Ctrl +/- zoom must use `transform: scale()` on the mount node with
-  an inverse `width`/`height` (`100/z %` / `vh`) so content reflows. See
-  `applyZoom` in `src/App.svelte`.
+  extension). Ctrl +/- zoom must use `transform: scale()` on the workspace zoom
+  surface with an inverse `width`/`height` (`100/z %`) so content reflows while
+  toolbar/chrome stays fixed. See `applyZoom` in `src/App.svelte`.
 - **Neutralino's production binary resolves `resources.neu` relative to the
   current working directory.** Launched by `xdg-open` (CWD `/` or `$HOME`) it
   can't find the bundle and exits instantly. Fix: launch with

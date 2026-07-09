@@ -36,7 +36,11 @@
     fitFont();
     const ro = new ResizeObserver(fitFont);
     ro.observe(el);
-    return () => ro.disconnect();
+    el.addEventListener('click', handleClick);
+    return () => {
+      ro.disconnect();
+      el.removeEventListener('click', handleClick);
+    };
   });
 
   // Pulse changed blocks on refresh. Runs after each render (depends on `html`),
@@ -110,7 +114,7 @@
   }
 </script>
 
-<div class="preview markdown-body" bind:this={el} onclick={handleClick} onscroll={onScroll}>
+<div class="preview markdown-body" bind:this={el} onscroll={onScroll}>
   {@html html}
 </div>
 

@@ -29,6 +29,7 @@ or trapped inside something like VS Code.
   you widen the window** so line length stays readable while the content fills the
   width (no letter-boxing).
 - **Zoom** — `Ctrl` `+` / `Ctrl` `-` / `Ctrl` `0`, or the toolbar control.
+  Zoom scales the document workspace, not the toolbar/chrome.
 - **Remembers everything** — theme, reading font, zoom, view mode, the folder +
   sidebar state, and **scroll position per file** persist across launches.
 - **Native file handling** — open/save dialogs, and `xdg-open` / "Open With"
@@ -85,14 +86,34 @@ scripts/install.sh                # installs under ~/.local, registers MIME + .d
 Then `xdg-open any.md` (or a file manager, or "Open With") launches markm.
 Remove with `scripts/uninstall.sh`.
 
+### Build a macOS `.app`
+
+Run this on macOS:
+
+```bash
+pnpm install
+scripts/package-macos-app.sh          # universal app: dist/macos/markm.app
+# or: pnpm run package:macos-app
+# or: scripts/package-macos-app.sh arm64
+# or: scripts/package-macos-app.sh x64
+open dist/macos/markm.app
+```
+
+The script builds the Svelte bundle, runs `neu build --release`, creates
+`appIcon.icns` from `public/icons/appIcon.png` with macOS `sips`/`iconutil`, and
+wraps the Neutralino binary in a normal `markm.app/Contents/...` bundle. It is
+not signed or notarized.
+
 ### Redistribution
 
 `neu build` produces the portable binary + `resources.neu` bundle — the basis
-for an AppImage / `.deb` / tarball. Node is **only** a build-time tool; it is
-never shipped. See [SPEC.md](SPEC.md#distribution).
+for an AppImage / `.deb` / tarball. `scripts/package-macos-app.sh` produces a
+macOS `.app` bundle. Node is **only** a build-time tool; it is never shipped. See
+[SPEC.md](SPEC.md#distribution).
 
 ## Documentation
 
+- [BUILD.md](BUILD.md) — Linux install and macOS `.app` build steps.
 - [SPEC.md](SPEC.md) — what markm is, the architecture, and why these choices.
 - [JOURNAL.md](JOURNAL.md) — decisions and gotchas, newest first.
 

@@ -157,14 +157,14 @@ const hello = (who) => \`hi, \${who}\`;
     revealInFileManager(filePath);
   }
 
-  // Zoom scales the whole UI (chrome + editor + preview). We use transform:
+  // Zoom scales the document workspace, not the toolbar. We use transform:
   // scale() with an inverse width/height rather than the CSS `zoom` property,
-  // because WebKitGTK (unlike Blink) doesn't support `zoom` — so the mount node
-  // is laid out at 1/z of the viewport and scaled back up to fill it, which
-  // makes text reflow correctly at the zoomed size. Persisted like the rest.
+  // because WebKitGTK (unlike Blink) doesn't support `zoom` — so the workspace
+  // surface is laid out at 1/z of its pane and scaled back up to fill it, which
+  // makes content reflow correctly at the zoomed size. Persisted like the rest.
   function applyZoom(z) {
     zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 10) / 10));
-    const el = document.getElementById('app');
+    const el = document.getElementById('zoom-surface');
     if (el) {
       if (zoom === 1) {
         // No transform at 100% — a transformed ancestor breaks CodeMirror's
@@ -176,7 +176,7 @@ const hello = (who) => \`hi, \${who}\`;
         el.style.transformOrigin = '0 0';
         el.style.transform = `scale(${zoom})`;
         el.style.width = `${100 / zoom}%`;
-        el.style.height = `${100 / zoom}vh`;
+        el.style.height = `${100 / zoom}%`;
       }
     }
     saveSetting('zoom', String(zoom));
@@ -399,31 +399,33 @@ const hello = (who) => \`hi, \${who}\`;
   </header>
 
   <div class="workspace">
-    {#if sidebarOpen}
-      <Sidebar {folderName} files={folderFiles} activePath={filePath} onSelect={openPath} />
-    {/if}
-    <main class="body" class:split={mode === 'split' && !chooserOpen}>
-      {#if chooserOpen}
-        <section class="pane">
-          <Chooser dir={chooserDir} files={chooserFiles} onPick={pickFromChooser} onClose={() => (chooserOpen = false)} />
-        </section>
-      {:else if mode === 'diff'}
-        <section class="pane">
-          <DiffView previous={previousContent} current={content} />
-        </section>
-      {:else}
-        {#if mode === 'edit' || mode === 'split'}
-          <section class="pane editor-pane">
-            <Editor value={content} onChange={onEditorChange} />
-          </section>
-        {/if}
-        {#if mode === 'view' || mode === 'split'}
-          <section class="pane preview-pane">
-            <Preview source={content} {onLink} pulseTick={refreshTick} scrollKey={filePath || ''} />
-          </section>
-        {/if}
+    <div id="zoom-surface" class="zoom-surface">
+      {#if sidebarOpen}
+        <Sidebar {folderName} files={folderFiles} activePath={filePath} onSelect={openPath} />
       {/if}
-    </main>
+      <main class="body" class:split={mode === 'split' && !chooserOpen}>
+        {#if chooserOpen}
+          <section class="pane">
+            <Chooser dir={chooserDir} files={chooserFiles} onPick={pickFromChooser} onClose={() => (chooserOpen = false)} />
+          </section>
+        {:else if mode === 'diff'}
+          <section class="pane">
+            <DiffView previous={previousContent} current={content} />
+          </section>
+        {:else}
+          {#if mode === 'edit' || mode === 'split'}
+            <section class="pane editor-pane">
+              <Editor value={content} onChange={onEditorChange} />
+            </section>
+          {/if}
+          {#if mode === 'view' || mode === 'split'}
+            <section class="pane preview-pane">
+              <Preview source={content} {onLink} pulseTick={refreshTick} scrollKey={filePath || ''} />
+            </section>
+          {/if}
+        {/if}
+      </main>
+    </div>
   </div>
 </div>
 
@@ -439,7 +441,14 @@ const hello = (who) => \`hi, \${who}\`;
   .workspace {
     flex: 1;
     min-height: 0;
+    overflow: hidden;
+  }
+
+  .zoom-surface {
     display: flex;
+    width: 100%;
+    height: 100%;
+    transform-origin: 0 0;
   }
 
   .reloaded-badge {
