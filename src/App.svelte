@@ -48,7 +48,7 @@ const hello = (who) => \`hi, \${who}\`;
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 3;
   const CHROME_ZOOM_MIN = 1;
-  const CHROME_ZOOM_MAX = 1.35;
+  const CHROME_ZOOM_MAX = 1.12;
 
   let content = $state(WELCOME);
   let mode = $state('view'); // 'view' | 'edit' | 'split'

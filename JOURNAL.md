@@ -8,8 +8,8 @@ Newest first. Decisions, rationale, and gotchas worth not re-deriving.
   later after saved zoom restores. That points at the asynchronous storage
   restore path, not static toolbar CSS.
 - **Decision:** document zoom scales the workspace fully. Toolbar/chrome follows
-  zoom only inside a bounded range (`1`..`1.35`) so it never becomes tiny at low
-  document zoom or oversized at high document zoom.
+  zoom only inside a narrow bounded range (`1`..`1.12`) so it never becomes tiny
+  at low document zoom or visibly tracks high document zoom.
 - **Fix:** `applyZoom` always clears transform/width/height on `#app`, writes
   `--chrome-scale`, then applies full zoom to `#zoom-surface`. This protects
   sessions that still have the old root-zoom implementation active during
