@@ -47,6 +47,8 @@ const hello = (who) => \`hi, \${who}\`;
 
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 3;
+  const CHROME_ZOOM_MIN = 1;
+  const CHROME_ZOOM_MAX = 1.35;
 
   let content = $state(WELCOME);
   let mode = $state('view'); // 'view' | 'edit' | 'split'
@@ -157,13 +159,23 @@ const hello = (who) => \`hi, \${who}\`;
     revealInFileManager(filePath);
   }
 
-  // Zoom scales the document workspace, not the toolbar. We use transform:
-  // scale() with an inverse width/height rather than the CSS `zoom` property,
-  // because WebKitGTK (unlike Blink) doesn't support `zoom` — so the workspace
-  // surface is laid out at 1/z of its pane and scaled back up to fill it, which
-  // makes content reflow correctly at the zoomed size. Persisted like the rest.
+  // Zoom scales the document workspace fully, and the toolbar only within a
+  // bounded range. We use transform: scale() for the workspace rather than the
+  // CSS `zoom` property, because WebKitGTK (unlike Blink) doesn't support
+  // `zoom` — so the workspace surface is laid out at 1/z of its pane and scaled
+  // back up to fill it, which makes content reflow correctly at the zoomed size.
   function applyZoom(z) {
     zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 10) / 10));
+    const chromeZoom = Math.min(CHROME_ZOOM_MAX, Math.max(CHROME_ZOOM_MIN, zoom));
+    // Older builds applied zoom directly to #app. Clear that root transform on
+    // every restore/change so persisted zoom cannot shrink the toolbar chrome.
+    const root = document.getElementById('app');
+    if (root) {
+      root.style.transform = 'none';
+      root.style.width = '100%';
+      root.style.height = '100%';
+      root.style.setProperty('--chrome-scale', String(chromeZoom));
+    }
     const el = document.getElementById('zoom-surface');
     if (el) {
       if (zoom === 1) {
@@ -473,8 +485,8 @@ const hello = (who) => \`hi, \${who}\`;
   .toolbar {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 8px 14px;
+    gap: calc(14px * var(--chrome-scale, 1));
+    padding: calc(8px * var(--chrome-scale, 1)) calc(14px * var(--chrome-scale, 1));
     background: var(--panel);
     color: var(--panel-fg);
     border-bottom: 1px solid var(--border);
@@ -493,11 +505,11 @@ const hello = (who) => \`hi, \${who}\`;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 16px;
+    font-size: calc(16px * var(--chrome-scale, 1));
   }
   .dot {
-    width: 10px;
-    height: 10px;
+    width: calc(10px * var(--chrome-scale, 1));
+    height: calc(10px * var(--chrome-scale, 1));
     border-radius: 50%;
     background: transparent;
     border: 1px solid var(--muted);
@@ -514,8 +526,8 @@ const hello = (who) => \`hi, \${who}\`;
   }
 
   .icon {
-    padding: 0 12px;
-    font-size: 18px;
+    padding: 0 calc(12px * var(--chrome-scale, 1));
+    font-size: calc(18px * var(--chrome-scale, 1));
     line-height: 1;
     flex: none;
   }
@@ -525,16 +537,16 @@ const hello = (who) => \`hi, \${who}\`;
     border-color: var(--accent);
   }
   .reveal {
-    height: 28px;
-    padding: 0 8px;
-    font-size: 15px;
+    height: calc(28px * var(--chrome-scale, 1));
+    padding: 0 calc(8px * var(--chrome-scale, 1));
+    font-size: calc(15px * var(--chrome-scale, 1));
     color: var(--muted);
   }
 
   .actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: calc(8px * var(--chrome-scale, 1));
     flex: 1;
     justify-content: flex-end;
   }
@@ -544,10 +556,10 @@ const hello = (who) => \`hi, \${who}\`;
   button,
   select {
     font: inherit;
-    font-size: 16px;
-    height: 40px;
+    font-size: calc(16px * var(--chrome-scale, 1));
+    height: calc(40px * var(--chrome-scale, 1));
     box-sizing: border-box;
-    padding: 0 14px;
+    padding: 0 calc(14px * var(--chrome-scale, 1));
     line-height: normal;
     background: var(--bg);
     color: var(--fg);
@@ -560,7 +572,7 @@ const hello = (who) => \`hi, \${who}\`;
   .zoom {
     display: flex;
     align-items: stretch;
-    height: 40px;
+    height: calc(40px * var(--chrome-scale, 1));
     box-sizing: border-box;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -574,12 +586,12 @@ const hello = (who) => \`hi, \${who}\`;
   }
   .modes button {
     border-right: 1px solid var(--border);
-    padding: 0 16px;
+    padding: 0 calc(16px * var(--chrome-scale, 1));
   }
   .modes button:last-child { border-right: none; }
-  .zoom button { padding: 0 14px; }
+  .zoom button { padding: 0 calc(14px * var(--chrome-scale, 1)); }
   .zoom .zoom-level {
-    min-width: 64px;
+    min-width: calc(64px * var(--chrome-scale, 1));
     display: flex;
     align-items: center;
     justify-content: center;

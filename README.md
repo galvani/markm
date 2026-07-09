@@ -29,7 +29,8 @@ or trapped inside something like VS Code.
   you widen the window** so line length stays readable while the content fills the
   width (no letter-boxing).
 - **Zoom** — `Ctrl` `+` / `Ctrl` `-` / `Ctrl` `0`, or the toolbar control.
-  Zoom scales the document workspace, not the toolbar/chrome.
+  Zoom scales the document workspace fully; toolbar/chrome scales only within a
+  bounded readable range.
 - **Remembers everything** — theme, reading font, zoom, view mode, the folder +
   sidebar state, and **scroll position per file** persist across launches.
 - **Native file handling** — open/save dialogs, and `xdg-open` / "Open With"

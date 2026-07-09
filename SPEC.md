@@ -38,8 +38,8 @@ themes, fast (native shell, no bundled browser), and standalone.
 - **Clickable links** — external → browser, local `.md` → viewer, `#anchor` → scroll.
 - A **folder sidebar** switches between markdown files in the current directory.
 - **Zoom** in/out/reset (keyboard + toolbar), scaling the document workspace
-  while keeping the toolbar/chrome at native size. **Esc** closes (in View mode /
-  the picker).
+  fully while clamping toolbar/chrome scale to a readable range. **Esc** closes
+  (in View mode / the picker).
 - **Persists** theme, reading font, zoom, view mode, folder + sidebar state, and
   **scroll position per file** between launches (Neutralino storage).
 - The console launcher **detaches** from the terminal by default (`--fg` to stay).

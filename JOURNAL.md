@@ -2,6 +2,19 @@
 
 Newest first. Decisions, rationale, and gotchas worth not re-deriving.
 
+## 2026-07-09 — Bounded toolbar zoom
+
+- **Bug pattern:** toolbar appears normal at first paint, then shrinks a moment
+  later after saved zoom restores. That points at the asynchronous storage
+  restore path, not static toolbar CSS.
+- **Decision:** document zoom scales the workspace fully. Toolbar/chrome follows
+  zoom only inside a bounded range (`1`..`1.35`) so it never becomes tiny at low
+  document zoom or oversized at high document zoom.
+- **Fix:** `applyZoom` always clears transform/width/height on `#app`, writes
+  `--chrome-scale`, then applies full zoom to `#zoom-surface`. This protects
+  sessions that still have the old root-zoom implementation active during
+  reload/dev cycles.
+
 ## 2026-07-09 — macOS `.app` packaging path
 
 - **Decision:** `.app` is enough for now; no `.dmg`, signing, or notarization
@@ -17,18 +30,19 @@ Newest first. Decisions, rationale, and gotchas worth not re-deriving.
   `CFBundleExecutable` is a tiny launcher that executes `markm-bin` with
   `--path="$APPDIR"` to keep `resources.neu` lookup CWD-independent.
 
-## 2026-07-09 — Zoom leaves toolbar unscaled
+## 2026-07-09 — Zoom leaves toolbar out of the document transform
 
-- **Decision:** zoom applies to the document workspace only. The toolbar/chrome
-  stays native-sized so controls do not grow/shrink when reading zoom changes.
+- **Decision:** the document zoom transform applies to the workspace only. The
+  toolbar/chrome uses bounded CSS-variable scaling instead of being inside the
+  transformed document surface.
 - **Implementation:** `applyZoom` targets `#zoom-surface` inside `.workspace`,
   not the Svelte mount root. The surface keeps the existing WebKitGTK-compatible
   `transform: scale()` + inverse width/height trick, but its height is relative
   to the workspace (`%`), not the full viewport (`vh`), because the toolbar now
   lives outside the scaled surface.
 - **Regression guard:** do not move the zoom transform back to `#app`; that
-  scales the toolbar and reintroduces the CodeMirror transformed-ancestor trap at
-  the app root.
+  reintroduces uncontrolled toolbar scaling and the CodeMirror
+  transformed-ancestor trap at the app root.
 
 ## 2026-07-05 — Prose typography, refresh-pulse polish, per-file scroll memory
 
@@ -175,8 +189,9 @@ didn't have** — drove several pivots:
 
 - **WebKitGTK does NOT support the CSS `zoom` property** (that's a Blink/Chrome
   extension). Ctrl +/- zoom must use `transform: scale()` on the workspace zoom
-  surface with an inverse `width`/`height` (`100/z %`) so content reflows while
-  toolbar/chrome stays fixed. See `applyZoom` in `src/App.svelte`.
+  surface with an inverse `width`/`height` (`100/z %`) so content reflows.
+  Toolbar/chrome scale is a separate bounded CSS variable. See `applyZoom` in
+  `src/App.svelte`.
 - **Neutralino's production binary resolves `resources.neu` relative to the
   current working directory.** Launched by `xdg-open` (CWD `/` or `$HOME`) it
   can't find the bundle and exits instantly. Fix: launch with
