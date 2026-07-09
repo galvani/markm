@@ -2,18 +2,17 @@
 
 Newest first. Decisions, rationale, and gotchas worth not re-deriving.
 
-## 2026-07-09 — Bounded toolbar zoom
+## 2026-07-09 — Toolbar stays fixed during document zoom
 
 - **Bug pattern:** toolbar appears normal at first paint, then shrinks a moment
   later after saved zoom restores. That points at the asynchronous storage
   restore path, not static toolbar CSS.
-- **Decision:** document zoom scales the workspace fully. Toolbar/chrome follows
-  zoom only inside a narrow bounded range (`1`..`1.12`) so it never becomes tiny
-  at low document zoom or visibly tracks high document zoom.
-- **Fix:** `applyZoom` always clears transform/width/height on `#app`, writes
-  `--chrome-scale`, then applies full zoom to `#zoom-surface`. This protects
-  sessions that still have the old root-zoom implementation active during
-  reload/dev cycles.
+- **Decision:** document zoom scales the workspace only. Toolbar/chrome stays
+  fixed-size; even a bounded toolbar scale was too visible at high document zoom.
+- **Fix:** `applyZoom` always clears transform/width/height on `#app`, removes
+  legacy `--chrome-scale`, then applies full zoom to `#zoom-surface`. This
+  protects sessions that still have the old root-zoom implementation active
+  during reload/dev cycles.
 
 ## 2026-07-09 — macOS `.app` packaging path
 
@@ -33,8 +32,8 @@ Newest first. Decisions, rationale, and gotchas worth not re-deriving.
 ## 2026-07-09 — Zoom leaves toolbar out of the document transform
 
 - **Decision:** the document zoom transform applies to the workspace only. The
-  toolbar/chrome uses bounded CSS-variable scaling instead of being inside the
-  transformed document surface.
+  toolbar/chrome is fixed-size and is not inside the transformed document
+  surface.
 - **Implementation:** `applyZoom` targets `#zoom-surface` inside `.workspace`,
   not the Svelte mount root. The surface keeps the existing WebKitGTK-compatible
   `transform: scale()` + inverse width/height trick, but its height is relative
@@ -190,8 +189,7 @@ didn't have** — drove several pivots:
 - **WebKitGTK does NOT support the CSS `zoom` property** (that's a Blink/Chrome
   extension). Ctrl +/- zoom must use `transform: scale()` on the workspace zoom
   surface with an inverse `width`/`height` (`100/z %`) so content reflows.
-  Toolbar/chrome scale is a separate bounded CSS variable. See `applyZoom` in
-  `src/App.svelte`.
+  Toolbar/chrome stays fixed-size. See `applyZoom` in `src/App.svelte`.
 - **Neutralino's production binary resolves `resources.neu` relative to the
   current working directory.** Launched by `xdg-open` (CWD `/` or `$HOME`) it
   can't find the bundle and exits instantly. Fix: launch with
