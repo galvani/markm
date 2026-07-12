@@ -7,6 +7,8 @@ handler for markdown files, so `xdg-open file.md` just opens it.
 Built because every alternative was one of: ugly, couldn't switch themes, slow,
 or trapped inside something like VS Code.
 
+![markm showing this README in the Dark theme](docs/screenshot.png)
+
 ## Features
 
 - **View / Edit / Split** modes — read rendered markdown, edit the source
@@ -28,6 +30,8 @@ or trapped inside something like VS Code.
   in markm, and `#anchors` scroll the page.
 - **Many themes** — Light, Dark, Dracula, Nord, Solarized Light, Gruvbox Dark,
   Rosé Pine. One switch restyles the chrome, the preview, *and* the editor.
+  Theme and font live together in the **☰ appearance menu** on the right of the
+  toolbar, so the chrome stays uncluttered.
 - **Reading font** — choose System / Sans / Serif / Mono. The font **auto-scales as
   you widen the window** so line length stays readable while the content fills the
   width (no letter-boxing).

@@ -24,7 +24,7 @@ A fast, native markdown viewer with an **edit mode** and lots of themes.
 ## Try it
 
 - Toggle **View / Edit / Split** in the toolbar
-- Switch the **theme** and **reading font** on the right — everything restyles live
+- Switch the **theme** and **reading font** in the **☰ menu** on the right — everything restyles live
 - Open a file with **Open**, or a whole folder with **Folder** (or \`xdg-open file.md\` / \`markm .\` once installed)
 - Links are clickable — external ones open in your browser, local \`.md\` files open here
 
@@ -65,6 +65,8 @@ const hello = (who) => \`hi, \${who}\`;
   let chooserOpen = $state(false); // directory-launch markdown picker
   let chooserDir = $state('');
   let chooserFiles = $state([]);
+  let settingsOpen = $state(false); // appearance menu (font + theme) popover
+  let settingsEl = $state(null); // popover root, so an outside click can close it
 
   let fileName = $derived(filePath ? filePath.split('/').pop() : 'untitled.md');
   let folderName = $derived(folderPath ? folderPath.split('/').pop() : '');
@@ -325,6 +327,7 @@ const hello = (who) => \`hi, \${who}\`;
     // read-only View mode — never mid-edit, so an errant Esc while typing (or in
     // Split/Diff) can't discard work by closing.
     if (e.key === 'Escape') {
+      if (settingsOpen) { e.preventDefault(); settingsOpen = false; return; }
       if (chooserOpen) { e.preventDefault(); chooserOpen = false; return; }
       if (mode === 'view') { e.preventDefault(); exitApp(); return; }
     }
@@ -340,7 +343,7 @@ const hello = (who) => \`hi, \${who}\`;
   }
 </script>
 
-<svelte:window on:keydown={onKey} />
+<svelte:window on:keydown={onKey} on:click={(e) => { if (settingsOpen && !settingsEl?.contains(e.target)) settingsOpen = false; }} />
 
 <div class="app">
   <header class="toolbar">
@@ -382,25 +385,44 @@ const hello = (who) => \`hi, \${who}\`;
         <button class="zoom-level" title="Reset zoom" onclick={() => applyZoom(1)}>{Math.round(zoom * 100)}%</button>
         <button aria-label="Zoom in" onclick={() => applyZoom(zoom + 0.1)}>+</button>
       </div>
-      <select
-        aria-label="Reading font"
-        title="Reading font"
-        value={fontId}
-        onchange={(e) => changeFont(e.currentTarget.value)}
-      >
-        {#each FONTS as f (f.id)}
-          <option value={f.id}>{f.name}</option>
-        {/each}
-      </select>
-      <select
-        aria-label="Theme"
-        value={themeId}
-        onchange={(e) => changeTheme(e.currentTarget.value)}
-      >
-        {#each THEMES as t (t.id)}
-          <option value={t.id}>{t.name}</option>
-        {/each}
-      </select>
+      <div class="settings" bind:this={settingsEl}>
+        <button
+          class="icon"
+          class:active={settingsOpen}
+          title="Appearance (font & theme)"
+          aria-label="Appearance settings"
+          aria-expanded={settingsOpen}
+          onclick={() => (settingsOpen = !settingsOpen)}
+        >☰</button>
+        {#if settingsOpen}
+          <div class="menu">
+            <label>
+              <span>Font</span>
+              <select
+                aria-label="Reading font"
+                value={fontId}
+                onchange={(e) => changeFont(e.currentTarget.value)}
+              >
+                {#each FONTS as f (f.id)}
+                  <option value={f.id}>{f.name}</option>
+                {/each}
+              </select>
+            </label>
+            <label>
+              <span>Theme</span>
+              <select
+                aria-label="Theme"
+                value={themeId}
+                onchange={(e) => changeTheme(e.currentTarget.value)}
+              >
+                {#each THEMES as t (t.id)}
+                  <option value={t.id}>{t.name}</option>
+                {/each}
+              </select>
+            </label>
+          </div>
+        {/if}
+      </div>
       <button onclick={openFile}>Open</button>
       <button onclick={openFolder}>Folder</button>
       <button class="primary" onclick={save}>Save</button>
@@ -546,6 +568,36 @@ const hello = (who) => \`hi, \${who}\`;
     gap: 8px;
     flex: 1;
     justify-content: flex-end;
+  }
+
+  .settings {
+    position: relative;
+    flex: none;
+  }
+  .menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  }
+  .menu label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .menu select {
+    min-width: 130px;
   }
 
   /* All toolbar controls share one height so buttons and the native select

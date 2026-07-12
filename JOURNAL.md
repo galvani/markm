@@ -2,6 +2,22 @@
 
 Newest first. Decisions, rationale, and gotchas worth not re-deriving.
 
+## 2026-07-12 — Appearance menu (font + theme) + README screenshot
+
+- **Font and theme moved behind a ☰ menu** at the right of the toolbar: the two
+  native `<select>`s were the widest chrome in the toolbar and are set once and
+  rarely touched, so they now live in a popover. The button next to them stays
+  visible so the setting is still one click away.
+- **Closing the popover:** the window `click` handler closes it only when the
+  event target is outside the popover root (`settingsEl.contains(e.target)`),
+  rather than a `stopPropagation` on the menu div — that variant needs an
+  `onclick` on a non-interactive element and trips two Svelte a11y warnings.
+  `Esc` closes the menu before it can reach the quit/picker branches.
+- **Screenshot** in `docs/screenshot.png`, linked from the README.
+- **Known gap surfaced by it:** the preview renders a broken-image icon for that
+  relative `![](docs/screenshot.png)` — image `src`s are not resolved against the
+  open file's directory. Images in local markdown simply don't display yet.
+
 ## 2026-07-12 — Code-block syntax highlighting + copy button
 
 - **Library:** highlight.js, imported as `lib/core` + an explicit language list
