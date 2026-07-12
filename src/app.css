@@ -145,6 +145,105 @@ body {
   font-weight: 400;
   font-size: inherit;
 }
+
+/* ---- Fenced code blocks (see Preview.svelte's fence renderer) ---- */
+/* The language tag + copy button ride on top of the block and only appear on
+   hover/keyboard focus, so a page of code still reads clean. */
+.markdown-body .code-block {
+  position: relative;
+  margin: 1.7em 0;
+}
+.markdown-body .code-block pre {
+  margin: 0;
+}
+.markdown-body .code-bar {
+  position: absolute;
+  top: 0.55em;
+  right: 0.6em;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  opacity: 0;
+  transition: opacity 0.12s ease-out;
+}
+.markdown-body .code-block:hover .code-bar,
+.markdown-body .code-bar:focus-within {
+  opacity: 1;
+}
+.markdown-body .code-lang {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.markdown-body .code-copy {
+  font-family: var(--sans);
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 8px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.markdown-body .code-copy:hover {
+  color: var(--fg);
+  border-color: var(--muted);
+}
+.markdown-body .code-copy.done {
+  color: var(--accent-fg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---- Syntax tokens ---- */
+/* highlight.js classes folded down to the five `--syn-*` tokens each theme
+   defines (see lib/themes.js). Reusing the UI vars instead was tried and is
+   wrong: several themes set --accent and --link to the SAME hex, which renders
+   keywords and strings identically. A new theme must ship its own --syn-* set. */
+.markdown-body .hljs-keyword,
+.markdown-body .hljs-built_in,
+.markdown-body .hljs-literal,
+.markdown-body .hljs-selector-tag,
+.markdown-body .hljs-doctag {
+  color: var(--syn-keyword);
+}
+.markdown-body .hljs-string,
+.markdown-body .hljs-regexp,
+.markdown-body .hljs-symbol,
+.markdown-body .hljs-addition,
+.markdown-body .hljs-meta .hljs-string {
+  color: var(--syn-string);
+}
+.markdown-body .hljs-title,
+.markdown-body .hljs-title.function_,
+.markdown-body .hljs-title.class_,
+.markdown-body .hljs-section,
+.markdown-body .hljs-name,
+.markdown-body .hljs-type,
+.markdown-body .hljs-attr,
+.markdown-body .hljs-attribute,
+.markdown-body .hljs-selector-class,
+.markdown-body .hljs-selector-id {
+  color: var(--syn-name);
+}
+.markdown-body .hljs-number,
+.markdown-body .hljs-variable,
+.markdown-body .hljs-template-variable,
+.markdown-body .hljs-params,
+.markdown-body .hljs-meta {
+  color: var(--syn-number);
+}
+.markdown-body .hljs-comment,
+.markdown-body .hljs-quote,
+.markdown-body .hljs-deletion {
+  color: var(--syn-comment);
+  font-style: italic;
+}
+.markdown-body .hljs-emphasis { font-style: italic; }
+.markdown-body .hljs-strong { font-weight: 600; }
 .markdown-body blockquote {
   margin: 1.6em 0;
   padding: 0.2em 0 0.2em 1em;

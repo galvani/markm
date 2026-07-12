@@ -21,6 +21,9 @@ or trapped inside something like VS Code.
 - **Open a file or a whole folder** — a sidebar switches between the markdown files
   in a folder; launching on a directory (`markm .`, `markm /some/dir`) opens a
   picker with **type-to-filter** and sort by **modified** (default) or **name**.
+- **Syntax-highlighted code blocks** — bash, sql, php, js/ts, python, go, rust,
+  json, yaml, css, html, ini, diff, dockerfile, markdown. Colors come from the
+  active theme. Hover a block for a **Copy** button.
 - **Clickable links** — external links open in your browser, local `.md` links open
   in markm, and `#anchors` scroll the page.
 - **Many themes** — Light, Dark, Dracula, Nord, Solarized Light, Gruvbox Dark,

@@ -35,6 +35,9 @@ themes, fast (native shell, no bundled browser), and standalone.
 - **Theme switching** across a catalog of light/dark themes, plus a **reading-font**
   choice; both apply live to chrome + preview + editor via CSS variables. The
   reading font auto-scales with pane width (content fills the window).
+- **Syntax highlighting** of fenced code blocks (highlight.js, a fixed language
+  set — no auto-detection), themed through per-theme `--syn-*` variables, with a
+  hover **Copy** button per block.
 - **Clickable links** — external → browser, local `.md` → viewer, `#anchor` → scroll.
 - A **folder sidebar** switches between markdown files in the current directory.
 - **Zoom** in/out/reset (keyboard + toolbar), scaling the document workspace
@@ -58,12 +61,14 @@ themes, fast (native shell, no bundled browser), and standalone.
 │  App.svelte ── state: content, mode, theme, font, zoom,   │
 │                file, folder/sidebar, git, scroll, chooser │
 │   ├─ Editor.svelte  → CodeMirror 6 (lib/editor.js)        │
-│   ├─ Preview.svelte → markdown-it (+ links, pulse, scroll)│
+│   ├─ Preview.svelte → markdown-it (+ highlight, copy,     │
+│                       links, pulse, scroll)               │
 │   ├─ DiffView.svelte→ word-level diff vs HEAD (jsdiff)    │
 │   ├─ Sidebar.svelte → folder file list                    │
 │   ├─ Chooser.svelte → directory-launch file picker        │
 │   ├─ lib/themes.js  → CSS-variable theme catalog          │
 │   ├─ lib/fonts.js   → reading-font catalog                │
+│   ├─ lib/highlight.js → highlight.js core + language set  │
 │   └─ lib/neu.js     → native wrappers (fs, dialogs,       │
 │                       storage, file-watch, git via exec)  │
 └─────────────────────────────────────────────────────────┘
@@ -83,6 +88,7 @@ themes, fast (native shell, no bundled browser), and standalone.
 | Frontend       | Svelte 5 + Vite 6                   |
 | Source editor  | CodeMirror 6                        |
 | Renderer       | markdown-it 14                      |
+| Code highlighting | highlight.js 11 (core + explicit languages) |
 | Diff (Changes) | diff (jsdiff) 5                     |
 | Rendering engine | system WebKitGTK 4.1 (not bundled) |
 

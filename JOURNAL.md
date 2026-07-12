@@ -2,6 +2,41 @@
 
 Newest first. Decisions, rationale, and gotchas worth not re-deriving.
 
+## 2026-07-12 — Code-block syntax highlighting + copy button
+
+- **Library:** highlight.js, imported as `lib/core` + an explicit language list
+  (`lib/highlight.js`) — the `highlight.js` barrel pulls ~190 grammars. No
+  auto-detection: an unknown/absent language falls back to escaped plain text,
+  because detection guesses wrong on short snippets more often than it helps.
+- **Gotcha (why themes gained `--syn-*` vars):** mapping hljs classes onto the
+  existing UI vars looked free but is wrong — Light, Dark, Nord and Solarized all
+  set `--accent` and `--link` to the SAME hex, so keywords and strings rendered
+  identically, and `--heading` ≈ `--fg` in the GitHub themes. Each theme now
+  carries its own five-token palette (`--syn-keyword/string/name/number/comment`)
+  from its real upstream colors. A new theme MUST ship one.
+- **Copy button:** a custom `fence` renderer wraps each block in `.code-block`
+  (kept as ONE top-level child so the auto-refresh pulse logic still sees one
+  block per fence); the click is delegated in Preview, and copy goes through
+  `Neutralino.clipboard` — `navigator.clipboard` needs a secure context, which
+  the app's page isn't.
+
+## 2026-07-12 — Zoom-out didn't shrink the preview; toolbar baseline reverted
+
+- **Root cause (preview):** `Preview.fitFont` fitted `--reading-font` to
+  `el.clientWidth`, a LAYOUT width. The zoom surface is laid out at `1/z` of its
+  pane and scaled back by `z`, so layout px GROW as you zoom out — the font grew
+  by exactly the factor the transform shrank it. Zoom was a no-op for the preview
+  (the old comment claiming layout px "cancels the zoom transform cleanly" had it
+  backwards).
+- **Fix:** recover the ancestor scale from `getBoundingClientRect().width /
+  offsetWidth` and fit the font to the pane's ON-SCREEN width. The fitted size
+  stays in layout px so the surface transform still scales it: 17px fitted at 50%
+  zoom now reads as 8.5px.
+- **Toolbar:** the Jul-9 inflation (`5b1ec90`, `55890ad`: 12→16px font, 26→40px
+  controls) was compensating for the then-buggy root-`#app` zoom transform, which
+  shrank the chrome. Once the toolbar left the transform, that baseline was just
+  oversized — reverted to the pre-inflation sizes.
+
 ## 2026-07-09 — Toolbar stays fixed during document zoom
 
 - **Bug pattern:** toolbar appears normal at first paint, then shrinks a moment

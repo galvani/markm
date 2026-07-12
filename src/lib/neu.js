@@ -259,6 +259,22 @@ export async function watchFile(filePath, onChange) {
   };
 }
 
+/**
+ * Copy text to the system clipboard.
+ * Prefers the native bridge: WebKitGTK only grants `navigator.clipboard.writeText`
+ * in a secure context, which the app's file:// page isn't.
+ * @returns {Promise<boolean>} whether the copy succeeded
+ */
+export async function copyToClipboard(text) {
+  try {
+    if (N) await N.clipboard.writeText(text);
+    else await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Quit the application. */
 export async function exitApp() {
   if (!N) return;

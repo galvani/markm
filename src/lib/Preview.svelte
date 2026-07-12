@@ -1,7 +1,8 @@
 <script>
   import MarkdownIt from 'markdown-it';
   import { onMount } from 'svelte';
-  import { saveSetting, loadSetting } from './neu.js';
+  import { saveSetting, loadSetting, copyToClipboard } from './neu.js';
+  import { highlightCode } from './highlight.js';
 
   // pulseTick bumps (from App) only on an on-disk auto-refresh; when it changes
   // we flash whichever rendered blocks are new vs the previous render.
@@ -13,6 +14,24 @@
   // niceties people expect from a modern renderer.
   const md = new MarkdownIt({ html: false, linkify: true, typographer: true });
 
+  // Fenced blocks render as: wrapper > (language tag + copy button) + <pre><code>.
+  // The wrapper is what the copy button anchors to, and it stays a single
+  // top-level child of .markdown-body so the pulse logic below still sees one
+  // block per fence.
+  md.renderer.rules.fence = (tokens, idx) => {
+    const { info, content } = tokens[idx];
+    const lang = (info || '').trim().split(/\s+/)[0].toLowerCase();
+    const body = highlightCode(content, lang) || md.utils.escapeHtml(content);
+    const tag = lang ? md.utils.escapeHtml(lang) : '';
+    return (
+      `<div class="code-block">` +
+      `<div class="code-bar">${tag ? `<span class="code-lang">${tag}</span>` : ''}` +
+      `<button class="code-copy" type="button" aria-label="Copy code">Copy</button></div>` +
+      `<pre><code class="hljs${tag ? ` language-${tag}` : ''}">${body}</code></pre>` +
+      `</div>\n`
+    );
+  };
+
   let html = $derived(md.render(source || ''));
 
   let el; // the preview pane element
@@ -21,14 +40,23 @@
   // length readable by GROWING the font once the pane is wider than BASE_PANE
   // (so a wide/fullscreen window shows bigger text, ~constant chars-per-line).
   // Below BASE_PANE the font stays at BASE_FONT. Measuring the pane's own width
-  // (not the viewport) makes this correct in split mode and with the sidebar
-  // open; measuring in layout px also cancels the app's zoom transform cleanly.
+  // (not the viewport) makes this correct in split mode and with the sidebar open.
+  //
+  // Gotcha: measure the pane's ON-SCREEN width, not its layout width. Zoom lays
+  // the surface out at 1/z of the pane and scales it back up, so layout px grow
+  // as you zoom OUT — feeding those in grows the font by exactly the factor zoom
+  // shrinks it, and zoom becomes a no-op for the preview. The rect/offset ratio
+  // recovers the ancestor scale, so the font is fitted to what the eye sees.
   const BASE_FONT = 17; // px at/under BASE_PANE
   const BASE_PANE = 932; // px pane width giving the intended measure (~820px text)
   const MAX_FONT = 40; // px ceiling so extreme widths don't produce silly text
   function fitFont() {
     if (!el) return;
-    const size = Math.min(MAX_FONT, Math.max(BASE_FONT, (BASE_FONT * el.clientWidth) / BASE_PANE));
+    const scale = el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+    const visibleWidth = el.clientWidth * scale;
+    const size = Math.min(MAX_FONT, Math.max(BASE_FONT, (BASE_FONT * visibleWidth) / BASE_PANE));
+    // Set the fitted size as-is: it is a layout value inside the surface, so the
+    // zoom transform then scales it — 17px fitted at 50% zoom reads as 8.5px.
     el.style.setProperty('--reading-font', `${size.toFixed(1)}px`);
   }
 
@@ -107,10 +135,29 @@
   // itself (blanking the app), so we always preventDefault and let App route the
   // href — external links to the browser, local .md files back into the viewer.
   function handleClick(e) {
+    const copy = e.target.closest?.('.code-copy');
+    if (copy) {
+      copyBlock(copy);
+      return;
+    }
     const a = e.target.closest?.('a');
     if (!a) return;
     e.preventDefault();
     onLink?.(a.getAttribute('href'));
+  }
+
+  // Copy the fence's source text (textContent, so the hljs markup doesn't come
+  // along) and confirm on the button itself — a toast would be overkill here.
+  async function copyBlock(btn) {
+    const code = btn.closest('.code-block')?.querySelector('code');
+    if (!code) return;
+    const ok = await copyToClipboard(code.textContent);
+    btn.textContent = ok ? 'Copied' : 'Failed';
+    btn.classList.add('done');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('done');
+    }, 1200);
   }
 </script>
 
