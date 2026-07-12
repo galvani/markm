@@ -15,56 +15,61 @@
 
 ![markm showing its own spec in the Gruvbox Dark theme](docs/screenshot.png)
 
+## TL;DR
+
+**A 1.8 MB native markdown viewer + editor for Linux.** `markm file.md` opens it
+instantly and gives your shell prompt straight back; `Esc` closes it. Sixteen
+themes restyle *everything* — chrome, page, code, editor. It also edits
+(CodeMirror 6), reloads live when the file changes on disk and highlights what
+changed, and shows a **git word-diff** against HEAD. No Electron, no browser tab,
+no IDE.
+
+```bash
+git clone https://github.com/galvani/markm && cd markm
+pnpm install && pnpm build
+pnpm exec neu build --release
+scripts/install.sh          # ~/.local + MIME + .desktop
+
+xdg-open README.md          # markm is now your markdown handler
+```
+
+<sub>Jump to: <a href="#why-markm">Why</a> · <a href="#everything-else">Features</a> ·
+<a href="#keyboard-shortcuts">Shortcuts</a> · <a href="#build--install-as-a-real-linux-app">Install</a> ·
+<a href="#develop">Develop</a></sub>
+
+---
+
 ## Why markm
 
 Every other option was ugly, slow, stuck on one theme, or trapped inside VS Code.
-markm is the one that gets these four things right:
+markm gets four things right:
 
-> **⚡ Throwaway by design.**
-> `markm file.md` **hands your shell prompt straight back** (it detaches), and
-> **`Esc` closes it**. Reading a markdown file costs one command and one keystroke
-> — no job parked in your terminal, no window to hunt down and close.
+> **⚡ Throwaway by design** — one command to open, `Esc` to close, prompt never blocked.
+>
+> **🎨 Sixteen themes, applied everywhere** — chrome, page, code *and* editor, together.
+>
+> **✍️ An editor and a git diff too** — live reload highlights what changed; **Changes** word-diffs against HEAD.
+>
+> **🪶 1.8 MB, native, instant** — system WebKitGTK. No Chromium, no Electron.
 
-> **🎨 Sixteen themes, applied everywhere.**
-> One switch restyles the chrome, the rendered page, the code blocks *and* the
-> editor together — Dracula, Nord, Tokyo Night, Catppuccin, Gruvbox, Everforest,
-> Solarized, Rosé Pine, One Dark, Monokai… Most viewers give you one look, or a
-> theme that stops at the preview pane.
+### The sixteen
 
-> **✍️ It's an editor too — and a git diff.**
-> View, Edit, or Split (CodeMirror 6). The file is **watched live**: change it on
-> disk and markm reloads and **highlights exactly what changed**, without ever
-> clobbering your unsaved edits. For a tracked file, **Changes** shows a word-level
-> diff against HEAD.
+| Dark | Light |
+|------|-------|
+| Dark · Dracula · Nord · Tokyo Night · One Dark · Monokai · Catppuccin Mocha · Everforest · Gruvbox Dark · Solarized Dark · Rosé Pine | Light · Catppuccin Latte · Gruvbox Light · Solarized Light · Rosé Pine Dawn |
 
-> **🪶 1.8 MB, native, instant.**
-> It renders through the system WebKitGTK — no bundled Chromium, no Electron, no
-> 200 MB install. Register it once and `xdg-open any.md` just works.
+---
 
 ## Everything else
 
-- **Browse** — one button opens the folder holding the current document, with that
-  document **preselected**; **type-to-filter**, sort by **modified** (default) or
-  **name**, and jump to any other folder from there. The same picker greets you when
-  markm is launched on a directory (`markm .`, `markm /some/dir`), and a sidebar
-  switches between the markdown files in the folder.
-- **Syntax-highlighted code blocks** — bash, sql, php, js/ts, python, go, rust,
-  json, yaml, css, html, ini, diff, dockerfile, markdown. Colors come from the
-  active theme. Hover a block for a **Copy** button.
-- **Images render** — local images referenced from the markdown (relative or
-  absolute paths) display inline.
-- **Clickable links** — external links open in your browser, local `.md` links open
-  in markm, and `#anchors` scroll the page.
-- **Reading font** — System / Sans / Serif / Mono, and it **auto-scales as you widen
-  the window** so line length stays readable while the content fills the width (no
-  letter-boxing). Font and theme live in the **☰ menu**, so the toolbar stays clean.
-- **Zoom** — `Ctrl` `+` / `Ctrl` `-` / `Ctrl` `0`, or the toolbar control. Zoom
-  scales the document; the toolbar stays fixed-size.
-- **Remembers everything** — theme, font, zoom, view mode, folder + sidebar state,
-  **scroll position per file**, and **window size per file** (toggleable in the ☰
-  menu) persist across launches.
-- **Native file handling** — open/save dialogs, and `xdg-open` / "Open With"
-  integration via a `.desktop` entry + `text/markdown` MIME association.
+- **Browse** — opens the current file's folder, that file preselected. Type to filter.
+- **Code blocks** — highlighted in 15 languages, themed, with a Copy button.
+- **Images** — local ones render inline.
+- **Links** — external open in your browser, local `.md` open here, `#anchors` scroll.
+- **Reading font** — System / Sans / Serif / Mono, auto-scaling with window width.
+- **Zoom** — `Ctrl` `+`/`-`/`0`, or `Ctrl` + wheel. The toolbar stays put.
+- **Remembers** — theme, font, zoom, mode, folder, scroll *and* window size, per file.
+- **Native** — `xdg-open` / "Open With" via a `.desktop` entry + MIME association.
 
 ## Keyboard shortcuts
 
@@ -113,7 +118,8 @@ scripts/install.sh                # installs under ~/.local, registers MIME + .d
 Then `xdg-open any.md` (or a file manager, or "Open With") launches markm.
 Remove with `scripts/uninstall.sh`.
 
-### Build a macOS `.app`
+<details>
+<summary><b>Build a macOS <code>.app</code></b></summary>
 
 Run this on macOS:
 
@@ -131,12 +137,17 @@ The script builds the Svelte bundle, runs `neu build --release`, creates
 wraps the Neutralino binary in a normal `markm.app/Contents/...` bundle. It is
 not signed or notarized.
 
-### Redistribution
+</details>
+
+<details>
+<summary><b>Redistribution</b></summary>
 
 `neu build` produces the portable binary + `resources.neu` bundle — the basis
 for an AppImage / `.deb` / tarball. `scripts/package-macos-app.sh` produces a
 macOS `.app` bundle. Node is **only** a build-time tool; it is never shipped. See
 [SPEC.md](SPEC.md#distribution).
+
+</details>
 
 ## Documentation
 
