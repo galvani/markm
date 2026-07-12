@@ -82,6 +82,87 @@ export async function readImageDataUrl(path) {
   }
 }
 
+/** Current window geometry, or null if unavailable. */
+export async function getWindowGeometry() {
+  if (!N) return null;
+  try {
+    const [pos, size, maximized] = await Promise.all([
+      N.window.getPosition(),
+      N.window.getSize(),
+      N.window.isMaximized(),
+    ]);
+    return { x: pos.x, y: pos.y, w: size.width, h: size.height, max: maximized };
+  } catch {
+    return null;
+  }
+}
+
+/** Restore a window geometry produced by getWindowGeometry(). */
+export async function setWindowGeometry(g) {
+  if (!N || !g) return;
+  try {
+    if (g.max) {
+      await N.window.maximize();
+      return;
+    }
+    if (await N.window.isMaximized()) await N.window.unmaximize();
+    // Size before move: some WMs clamp a move against the OLD size, so moving
+    // first can land the window somewhere else than asked.
+    await N.window.setSize({ width: g.w, height: g.h });
+    await N.window.move(g.x, g.y);
+  } catch {
+    /* window ops are best-effort — a failed restore just leaves it where it is */
+  }
+}
+
+/**
+ * Drop the system title bar. The `borderless` flag in neutralino.config.json is
+ * not honoured on this GTK/WebKit build (the window still comes up decorated), so
+ * we ask for it at runtime — the toolbar is the title bar.
+ */
+export async function setBorderless() {
+  if (!N) return;
+  try {
+    await N.window.setBorderless(true);
+  } catch {
+    /* non-fatal — worst case the app keeps its decorations */
+  }
+}
+
+export async function minimizeWindow() {
+  if (!N) return;
+  try {
+    await N.window.minimize();
+  } catch {
+    /* non-fatal */
+  }
+}
+
+/** Maximize, or restore if already maximized. */
+export async function toggleMaximizeWindow() {
+  if (!N) return;
+  try {
+    if (await N.window.isMaximized()) await N.window.unmaximize();
+    else await N.window.maximize();
+  } catch {
+    /* non-fatal */
+  }
+}
+
+/**
+ * Make an element drag the (borderless) window, as a title bar would.
+ * Only ever applied to the toolbar's empty filler areas, so no exclusion list is
+ * needed — buttons and selects live outside the region and keep their clicks.
+ */
+export async function makeDragRegion(el) {
+  if (!N || !el) return;
+  try {
+    await N.window.setDraggableRegion(el);
+  } catch {
+    /* non-fatal */
+  }
+}
+
 /** Write a UTF-8 text file. Returns true on success. */
 export async function writeTextFile(path, data) {
   if (!N) return false;
@@ -191,9 +272,23 @@ export async function pickSavePath(suggested = 'untitled.md') {
 }
 
 /** Persist a small key/value using native storage, with a localStorage fallback. */
+/**
+ * Neutralino storage keys must match ^[a-zA-Z0-9_-]+$ (each key is a file name);
+ * anything else is rejected with NE_ST_INVSTKY. Our per-file keys embed a path
+ * (`scroll:/home/x/a.md`), so they have to be folded into the allowed alphabet —
+ * with a hash appended, since two different paths can sanitize to the same string.
+ */
+function safeKey(key) {
+  if (/^[a-zA-Z0-9_-]+$/.test(key)) return key;
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) hash = (Math.imul(hash, 31) + key.charCodeAt(i)) | 0;
+  const folded = key.replace(/[^a-zA-Z0-9_-]/g, '_').slice(-48);
+  return `${folded}_${(hash >>> 0).toString(36)}`;
+}
+
 export async function saveSetting(key, value) {
   try {
-    if (N) await N.storage.setData(key, value);
+    if (N) await N.storage.setData(safeKey(key), value);
     else localStorage.setItem(key, value);
   } catch {
     /* non-fatal */
@@ -203,7 +298,7 @@ export async function saveSetting(key, value) {
 /** Read a persisted setting; returns null if unset. */
 export async function loadSetting(key) {
   try {
-    if (N) return await N.storage.getData(key);
+    if (N) return await N.storage.getData(safeKey(key));
     return localStorage.getItem(key);
   } catch {
     return null;

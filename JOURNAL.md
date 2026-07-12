@@ -2,6 +2,33 @@
 
 Newest first. Decisions, rationale, and gotchas worth not re-deriving.
 
+## 2026-07-12 — Storage keys were silently broken; per-file window geometry
+
+- **Neutralino storage keys must match `^[a-zA-Z0-9_-]+$`** (each key becomes a
+  file name); anything else is refused with `NE_ST_INVSTKY`. Our per-file keys
+  embed a path (`scroll:/home/x/a.md`), so **every write failed** — swallowed by
+  the `catch` in `saveSetting`. The per-file scroll memory the README advertised
+  had therefore never once persisted. `safeKey()` (neu.js) now folds any key into
+  the allowed alphabet and appends a hash of the original (two paths can fold to
+  the same string). Any new per-file key gets this for free — don't bypass
+  saveSetting/loadSetting.
+- **Per-file window geometry**, same shape as the scroll memory: a file reopens at
+  the size/place you last read it at. Neutralino fires no move/resize event, so a
+  1.5 s poll persists it only when it changed. Toggle in the ☰ menu, default on.
+  **Wayland caveat:** `window.getPosition()` returns 0,0 — the compositor doesn't
+  expose window position — so in practice this remembers SIZE, not position.
+- **Flash of the welcome doc on launch** (Jan spotted it): `content` was seeded
+  with `WELCOME`, which painted for a frame before `onMount` loaded the real file.
+  It now starts empty, and WELCOME is installed only when no file/dir was passed.
+- **Borderless does not work on KDE/Wayland.** `"borderless": true` in
+  neutralino.config.json AND `window.setBorderless(true)` at runtime both leave
+  KWin's server-side title bar in place. The toolbar is nonetheless prepared to BE
+  the title bar: two empty fillers are `setDraggableRegion` handles (drag to move,
+  double-click to maximize) and there are in-app – ▢ ✕ controls. Removing the real
+  bar needs a **KWin window rule** ("No titlebar and frame"), i.e. user config, not
+  something the app can do.
+- **Ctrl + wheel zooms** (inverted per Jan: wheel up = zoom out).
+
 ## 2026-07-12 — Images render, nine themes, icon mode switch, Browse, MIT
 
 - **Local images now display, and the reason they didn't is worth keeping.** The

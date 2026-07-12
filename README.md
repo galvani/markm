@@ -1,55 +1,70 @@
-# markm
+<h1 align="center">markm</h1>
 
-A fast, themeable **native Linux markdown viewer with an edit mode** — a real
-standalone app (not a browser tab, not part of an IDE) that you register as the
-handler for markdown files, so `xdg-open file.md` just opens it.
+<p align="center">
+  <b>The markdown viewer Linux never had.</b><br>
+  A real standalone app — not a browser tab, not an IDE panel — that opens in a
+  blink, gets out of your way, and looks good doing it.
+</p>
 
-Built because every alternative was one of: ugly, couldn't switch themes, slow,
-or trapped inside something like VS Code.
+<p align="center">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-black">
+  <img alt="Platform: Linux" src="https://img.shields.io/badge/platform-Linux%20%2B%20macOS-black">
+  <img alt="Binary size: 1.8 MB" src="https://img.shields.io/badge/binary-1.8%20MB-black">
+  <img alt="No Electron" src="https://img.shields.io/badge/Electron-none-black">
+</p>
 
 ![markm showing its own spec in the Gruvbox Dark theme](docs/screenshot.png)
 
-## Features
+## Why markm
 
-- **View / Edit / Split** modes — read rendered markdown, edit the source
-  (CodeMirror 6), or see both side by side. One icon switch in the toolbar.
-- **Live auto-refresh** — markm watches the open file; when it changes on disk it
-  reloads automatically and briefly **highlights the changed blocks** (they settle
-  into a subtle tint until the next change). Unsaved edits are never clobbered — a
-  dirty buffer is left alone.
-- **Git "Changes" view** — for a file under git, a word-level diff against the last
-  commit (HEAD): **insertions highlighted, deletions struck through**. The button
-  appears only when the open file is tracked.
+Every other option was ugly, slow, stuck on one theme, or trapped inside VS Code.
+markm is the one that gets these four things right:
+
+> **⚡ Throwaway by design.**
+> `markm file.md` **hands your shell prompt straight back** (it detaches), and
+> **`Esc` closes it**. Reading a markdown file costs one command and one keystroke
+> — no job parked in your terminal, no window to hunt down and close.
+
+> **🎨 Sixteen themes, applied everywhere.**
+> One switch restyles the chrome, the rendered page, the code blocks *and* the
+> editor together — Dracula, Nord, Tokyo Night, Catppuccin, Gruvbox, Everforest,
+> Solarized, Rosé Pine, One Dark, Monokai… Most viewers give you one look, or a
+> theme that stops at the preview pane.
+
+> **✍️ It's an editor too — and a git diff.**
+> View, Edit, or Split (CodeMirror 6). The file is **watched live**: change it on
+> disk and markm reloads and **highlights exactly what changed**, without ever
+> clobbering your unsaved edits. For a tracked file, **Changes** shows a word-level
+> diff against HEAD.
+
+> **🪶 1.8 MB, native, instant.**
+> It renders through the system WebKitGTK — no bundled Chromium, no Electron, no
+> 200 MB install. Register it once and `xdg-open any.md` just works.
+
+## Everything else
+
 - **Browse** — one button opens the folder holding the current document, with that
-  document **preselected** in the list; **type-to-filter**, sort by **modified**
-  (default) or **name**, and jump to any other folder from there. The same picker
-  greets you when markm is launched on a directory (`markm .`, `markm /some/dir`),
-  and a sidebar switches between the markdown files in the folder.
-- **Images render** — local images referenced from the markdown (relative or
-  absolute paths) display inline.
+  document **preselected**; **type-to-filter**, sort by **modified** (default) or
+  **name**, and jump to any other folder from there. The same picker greets you when
+  markm is launched on a directory (`markm .`, `markm /some/dir`), and a sidebar
+  switches between the markdown files in the folder.
 - **Syntax-highlighted code blocks** — bash, sql, php, js/ts, python, go, rust,
   json, yaml, css, html, ini, diff, dockerfile, markdown. Colors come from the
   active theme. Hover a block for a **Copy** button.
+- **Images render** — local images referenced from the markdown (relative or
+  absolute paths) display inline.
 - **Clickable links** — external links open in your browser, local `.md` links open
   in markm, and `#anchors` scroll the page.
-- **Sixteen themes** — Light, Dark, Dracula, Nord, Tokyo Night, One Dark, Monokai,
-  Catppuccin (Mocha / Latte), Everforest Dark, Rosé Pine (+ Dawn), Gruvbox
-  (Dark / Light), Solarized (Dark / Light). One switch restyles the chrome, the
-  preview, *and* the editor. Theme and font live together in the **☰ appearance
-  menu** on the right of the toolbar, so the chrome stays uncluttered.
-- **Reading font** — choose System / Sans / Serif / Mono. The font **auto-scales as
-  you widen the window** so line length stays readable while the content fills the
-  width (no letter-boxing).
-- **Zoom** — `Ctrl` `+` / `Ctrl` `-` / `Ctrl` `0`, or the toolbar control.
-  Zoom scales the document workspace; toolbar/chrome stays fixed-size.
-- **Remembers everything** — theme, reading font, zoom, view mode, the folder +
-  sidebar state, and **scroll position per file** persist across launches.
+- **Reading font** — System / Sans / Serif / Mono, and it **auto-scales as you widen
+  the window** so line length stays readable while the content fills the width (no
+  letter-boxing). Font and theme live in the **☰ menu**, so the toolbar stays clean.
+- **Zoom** — `Ctrl` `+` / `Ctrl` `-` / `Ctrl` `0`, or the toolbar control. Zoom
+  scales the document; the toolbar stays fixed-size.
+- **Remembers everything** — theme, font, zoom, view mode, folder + sidebar state,
+  **scroll position per file**, and **window size per file** (toggleable in the ☰
+  menu) persist across launches.
 - **Native file handling** — open/save dialogs, and `xdg-open` / "Open With"
   integration via a `.desktop` entry + `text/markdown` MIME association.
-- **Runs detached from the terminal** — `markm file.md` frees your shell prompt;
-  pass `--fg` (or `MARKM_FG=1`) to keep it in the foreground.
-- **Tiny & fast** — a ~1.8 MB native binary that renders through the system
-  WebKitGTK; no bundled browser, no Electron bloat.
 
 ## Keyboard shortcuts
 

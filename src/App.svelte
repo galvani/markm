@@ -13,6 +13,8 @@
     pickFolderPath, listMarkdownFiles, revealInFileManager,
     gitIsTracked, gitHeadContent, watchFile, exitApp,
     pathStat, listMarkdownFilesWithStats, openExternal,
+    getWindowGeometry, setWindowGeometry,
+    minimizeWindow, toggleMaximizeWindow, makeDragRegion, setBorderless,
   } from './lib/neu.js';
 
   const MD_RE = /\.(md|markdown|mdown|mkd|mkdn)$/i;
@@ -55,7 +57,11 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 3;
 
-  let content = $state(WELCOME);
+  // Starts EMPTY, not with WELCOME: markm is nearly always launched on a file, and
+  // seeding the welcome doc here made it paint for a frame before onMount replaced
+  // it — a visible flash of the wrong document. The welcome text is installed in
+  // onMount only when there is no file to open.
+  let content = $state('');
   let mode = $state('view'); // 'view' | 'edit' | 'split'
   let themeId = $state(DEFAULT_THEME);
   let fontId = $state(DEFAULT_FONT);
@@ -72,8 +78,11 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
   let chooserOpen = $state(false); // directory-launch markdown picker
   let chooserDir = $state('');
   let chooserFiles = $state([]);
+  let rememberGeometry = $state(true); // per-file window size/position memory
   let settingsOpen = $state(false); // appearance menu (font + theme) popover
   let settingsEl = $state(null); // popover root, so an outside click can close it
+  let dragLeftEl = $state(null); // toolbar fillers that drag the borderless window
+  let dragRightEl = $state(null);
 
   let fileName = $derived(filePath ? filePath.split('/').pop() : 'untitled.md');
   let folderName = $derived(folderPath ? folderPath.split('/').pop() : '');
@@ -89,6 +98,7 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
 
   onMount(async () => {
     initNative();
+    setBorderless();
 
     // Restore all persisted preferences (theme, view mode, zoom/font size).
     const savedTheme = await loadSetting('theme');
@@ -101,6 +111,9 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
 
     const savedMode = await loadSetting('mode');
     if (savedMode) mode = savedMode;
+
+    // Per-file window geometry defaults ON; only an explicit '0' turns it off.
+    rememberGeometry = (await loadSetting('rememberGeometry')) !== '0';
 
     const savedZoom = parseFloat(await loadSetting('zoom'));
     applyZoom(Number.isFinite(savedZoom) ? savedZoom : 1);
@@ -122,7 +135,24 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
       if (st?.isDirectory) await openChooser(launch);
       else await openPath(launch);
     }
+    if (!filePath && !chooserOpen) content = WELCOME;
+
+    watchGeometry();
+    // Drag + double-click-to-maximize are window gestures on empty chrome, not
+    // controls, so they're bound imperatively (as a <div> with a dblclick handler
+    // is an a11y smell — there is nothing here for a keyboard user to reach).
+    for (const el of [dragLeftEl, dragRightEl]) {
+      makeDragRegion(el);
+      el?.addEventListener('dblclick', toggleMaximizeWindow);
+    }
   });
+
+  // Ctrl + wheel zooms the document, the way every browser and editor does.
+  function onWheel(e) {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    applyZoom(zoom + (e.deltaY < 0 ? -0.1 : 0.1));
+  }
 
   // Show the markdown picker for a directory. Also primes the folder sidebar so
   // switching files stays available after a pick.
@@ -141,6 +171,7 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
 
   onDestroy(() => {
     if (reloadTimer) clearTimeout(reloadTimer);
+    if (geometryTimer) clearInterval(geometryTimer);
     if (disposeWatcher) disposeWatcher();
   });
 
@@ -218,11 +249,66 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
   async function openPath(path) {
     const text = await readTextFile(path);
     if (text === null) return;
+    await saveGeometry(); // bank the outgoing file's window before switching
     content = text;
     filePath = path;
     dirty = false;
+    await restoreGeometry(path);
     await refreshGit();
     await armWatcher(path);
+  }
+
+  // --- Per-file window geometry ---
+  // Same idea as the per-file scroll memory: a file reopens at the size and place
+  // you last read it at. Neutralino fires no move/resize event, so the geometry is
+  // polled and persisted only when it actually changed (writes are rare in
+  // practice — the window sits still while you read).
+  let lastGeometry = null;
+  let geometryKey = null; // the file `lastGeometry` belongs to
+  let geometryTimer = null;
+
+  function toggleRememberGeometry(on) {
+    rememberGeometry = on;
+    saveSetting('rememberGeometry', on ? '1' : '0');
+  }
+
+  async function saveGeometry() {
+    if (!rememberGeometry || !geometryKey || !lastGeometry) return;
+    saveSetting(`geom:${geometryKey}`, JSON.stringify(lastGeometry));
+  }
+
+  async function restoreGeometry(path) {
+    geometryKey = path;
+    lastGeometry = null; // don't let the previous file's geometry be written under this key
+    if (!rememberGeometry) return;
+    const saved = await loadSetting(`geom:${path}`);
+    if (saved) {
+      try {
+        await setWindowGeometry(JSON.parse(saved));
+      } catch {
+        /* a corrupt entry just means "no memory for this file" */
+      }
+    }
+    lastGeometry = await getWindowGeometry();
+    // Record on first sight too, so a file always has a remembered geometry — not
+    // only once you happen to move or resize its window.
+    await saveGeometry();
+  }
+
+  function watchGeometry() {
+    geometryTimer = setInterval(async () => {
+      if (!rememberGeometry || !geometryKey) return;
+      const g = await getWindowGeometry();
+      if (!g || !lastGeometry) {
+        lastGeometry = g;
+        return;
+      }
+      const moved = g.x !== lastGeometry.x || g.y !== lastGeometry.y
+        || g.w !== lastGeometry.w || g.h !== lastGeometry.h || g.max !== lastGeometry.max;
+      if (!moved) return;
+      lastGeometry = g;
+      saveSetting(`geom:${geometryKey}`, JSON.stringify(g));
+    }, 1500);
   }
 
   // (Re)install the on-disk watcher for the open file. Tears down any previous
@@ -371,7 +457,11 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
   }
 </script>
 
-<svelte:window on:keydown={onKey} on:click={(e) => { if (settingsOpen && !settingsEl?.contains(e.target)) settingsOpen = false; }} />
+<svelte:window
+  on:keydown={onKey}
+  on:wheel|nonpassive={onWheel}
+  on:click={(e) => { if (settingsOpen && !settingsEl?.contains(e.target)) settingsOpen = false; }}
+/>
 
 <div class="app">
   <header class="toolbar">
@@ -398,6 +488,11 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
       {/if}
     </div>
 
+    <!-- The window is borderless: these two empty fillers ARE the title bar —
+         drag them to move the window, double-click to maximize. They hold no
+         controls, so no drag-exclusion list is needed. -->
+    <div class="drag" bind:this={dragLeftEl}></div>
+
     <!-- Icon-only mode switch. Icons are inline SVG (no icon font to ship) and
          inherit currentColor, so they follow the theme like the text did. -->
     <div class="modes" role="group" aria-label="View mode">
@@ -416,6 +511,8 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
         </button>
       {/if}
     </div>
+
+    <div class="drag" bind:this={dragRightEl}></div>
 
     <div class="actions">
       <div class="zoom" role="group" aria-label="Zoom">
@@ -458,11 +555,26 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
                 {/each}
               </select>
             </label>
+            <label class="check">
+              <input
+                type="checkbox"
+                checked={rememberGeometry}
+                onchange={(e) => toggleRememberGeometry(e.currentTarget.checked)}
+              />
+              <span>Remember window size per file</span>
+            </label>
           </div>
         {/if}
       </div>
       <button onclick={browse}>Browse</button>
       <button class="primary" onclick={save}>Save</button>
+
+      <!-- Window controls, since there is no system title bar to provide them. -->
+      <div class="wctl">
+        <button class="icon" title="Minimize" aria-label="Minimize" onclick={minimizeWindow}>–</button>
+        <button class="icon" title="Maximize / restore" aria-label="Maximize or restore" onclick={toggleMaximizeWindow}>▢</button>
+        <button class="icon close" title="Close" aria-label="Close" onclick={exitApp}>✕</button>
+      </div>
     </div>
   </header>
 
@@ -562,7 +674,14 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
     align-items: center;
     gap: 8px;
     min-width: 0;
+    flex: 0 1 auto;
+  }
+
+  /* Empty, but load-bearing: these are the window's drag handles. */
+  .drag {
     flex: 1;
+    min-width: 12px;
+    align-self: stretch;
   }
   .file .name {
     overflow: hidden;
@@ -610,8 +729,32 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 1;
+    flex: none;
     justify-content: flex-end;
+  }
+
+  .wctl {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 4px;
+    padding-left: 8px;
+    border-left: 1px solid var(--border);
+  }
+  .wctl button {
+    border-color: transparent;
+    background: transparent;
+    color: var(--muted);
+    padding: 0 8px;
+  }
+  .wctl button:hover {
+    color: var(--fg);
+    border-color: var(--border);
+  }
+  .wctl .close:hover {
+    background: #e5484d;
+    border-color: #e5484d;
+    color: #fff;
   }
 
   .settings {
@@ -642,6 +785,18 @@ markm is open source ([MIT](https://github.com/galvani/markm)) — built by
   }
   .menu select {
     min-width: 130px;
+  }
+  .menu label.check {
+    justify-content: flex-start;
+    gap: 8px;
+    padding-top: 2px;
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+    cursor: pointer;
+  }
+  .menu label.check input {
+    accent-color: var(--accent);
+    cursor: pointer;
   }
 
   /* All toolbar controls share one height so buttons and the native select
