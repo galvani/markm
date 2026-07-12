@@ -3,10 +3,17 @@
   // `markm .` or `markm /tmp`). Lists the markdown files in that folder,
   // filters live as you type, and sorts by modified-time (default) or name.
 
-  let { dir = '', files = [], onPick, onClose } = $props();
+  // activePath = the document that is currently open; it starts out selected, so
+  // Browse shows you where you are rather than a cold list.
+  let { dir = '', files = [], activePath = '', onPick, onClose, onChangeFolder } = $props();
 
   let filter = $state('');
   let sort = $state('modified'); // 'modified' | 'name'
+
+  // Scroll the current document into view once the list is on screen.
+  function selected(node) {
+    node.scrollIntoView({ block: 'center' });
+  }
 
   let shown = $derived(
     files
@@ -60,16 +67,24 @@
         <button class:active={sort === 'modified'} onclick={() => (sort = 'modified')}>Modified</button>
         <button class:active={sort === 'name'} onclick={() => (sort = 'name')}>Name</button>
       </div>
+      <button class="folder" onclick={() => onChangeFolder?.()}>Other folder…</button>
     </div>
   </div>
 
   <ul class="list">
     {#each shown as f (f.path)}
       <li>
-        <button class="row" onclick={() => onPick?.(f.path)}>
-          <span class="name">{f.name}</span>
-          <span class="meta">{fmtDate(f.modifiedAt)}</span>
-        </button>
+        {#if f.path === activePath}
+          <button class="row active" use:selected onclick={() => onPick?.(f.path)}>
+            <span class="name">{f.name}</span>
+            <span class="meta">{fmtDate(f.modifiedAt)}</span>
+          </button>
+        {:else}
+          <button class="row" onclick={() => onPick?.(f.path)}>
+            <span class="name">{f.name}</span>
+            <span class="meta">{fmtDate(f.modifiedAt)}</span>
+          </button>
+        {/if}
       </li>
     {:else}
       <li class="empty">
@@ -178,6 +193,29 @@
   }
   .row:hover {
     background: var(--panel);
+  }
+  .row.active {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .row.active .meta {
+    color: var(--accent-fg);
+    opacity: 0.75;
+  }
+  .folder {
+    flex: none;
+    height: 30px;
+    padding: 0 12px;
+    font: inherit;
+    font-size: 12px;
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .folder:hover {
+    border-color: var(--accent);
   }
   .row .name {
     font-size: 14px;

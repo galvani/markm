@@ -23,10 +23,14 @@ A fast, native markdown viewer with an **edit mode** and lots of themes.
 
 ## Try it
 
-- Toggle **View / Edit / Split** in the toolbar
+- Toggle **View / Edit / Split** with the icon switch in the toolbar
 - Switch the **theme** and **reading font** in the **☰ menu** on the right — everything restyles live
-- Open a file with **Open**, or a whole folder with **Folder** (or \`xdg-open file.md\` / \`markm .\` once installed)
+- Hit **Browse** to pick another file from this folder (or \`xdg-open file.md\` / \`markm .\` once installed)
 - Links are clickable — external ones open in your browser, local \`.md\` files open here
+
+New to markdown? Start with the
+[CommonMark reference](https://commonmark.org/help/) or
+[GitHub's markdown guide](https://docs.github.com/en/get-started/writing-on-github).
 
 \`\`\`js
 // code blocks are highlighted too
@@ -43,6 +47,9 @@ const hello = (who) => \`hi, \${who}\`;
 | Ctrl +/− | Zoom in / out |
 | Ctrl+0   | Reset zoom |
 | Esc      | Close markm (in View mode) |
+
+markm is open source ([MIT](https://github.com/galvani/markm)) — built by
+[Jan Kozak](https://galvani.github.io).
 `;
 
   const ZOOM_MIN = 0.5;
@@ -263,6 +270,27 @@ const hello = (who) => \`hi, \${who}\`;
     if (path) await openPath(path);
   }
 
+  // "Browse" = the picker, opened on the folder that holds the current document
+  // (falling back to the last-used folder), with that document preselected. It
+  // replaces the old Open + Folder buttons: the picker itself can jump to any
+  // other folder, and the native open dialog stays reachable from there.
+  async function browse() {
+    const dir = filePath ? filePath.slice(0, filePath.lastIndexOf('/')) : folderPath;
+    if (!dir) {
+      await openFolder();
+      return;
+    }
+    await openChooser(dir);
+  }
+
+  // Switch the picker to another folder via the native folder dialog.
+  async function browseFolder() {
+    const dir = await pickFolderPath();
+    if (!dir) return;
+    saveSetting('folder', dir);
+    await openChooser(dir);
+  }
+
   async function save() {
     let path = filePath;
     if (!path) {
@@ -370,12 +398,22 @@ const hello = (who) => \`hi, \${who}\`;
       {/if}
     </div>
 
+    <!-- Icon-only mode switch. Icons are inline SVG (no icon font to ship) and
+         inherit currentColor, so they follow the theme like the text did. -->
     <div class="modes" role="group" aria-label="View mode">
-      <button class:active={mode === 'view'} onclick={() => setMode('view')}>View</button>
-      <button class:active={mode === 'edit'} onclick={() => setMode('edit')}>Edit</button>
-      <button class:active={mode === 'split'} onclick={() => setMode('split')}>Split</button>
+      <button class:active={mode === 'view'} title="View" aria-label="View" onclick={() => setMode('view')}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1.5 12S5 5.5 12 5.5 22.5 12 22.5 12 19 18.5 12 18.5 1.5 12 1.5 12Z"/><circle cx="12" cy="12" r="3.2"/></svg>
+      </button>
+      <button class:active={mode === 'edit'} title="Edit" aria-label="Edit" onclick={() => setMode('edit')}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4Z"/><path d="m14.5 5.5 4 4"/></svg>
+      </button>
+      <button class:active={mode === 'split'} title="Split" aria-label="Split" onclick={() => setMode('split')}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M12 4.5v15"/></svg>
+      </button>
       {#if gitTracked}
-        <button class:active={mode === 'diff'} title="Changes vs last commit" onclick={enterDiff}>Changes</button>
+        <button class:active={mode === 'diff'} title="Changes vs last commit" aria-label="Changes vs last commit" onclick={enterDiff}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v9a3 3 0 0 0 3 3h6"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M18 10v4"/><path d="M16 12h4"/></svg>
+        </button>
       {/if}
     </div>
 
@@ -423,8 +461,7 @@ const hello = (who) => \`hi, \${who}\`;
           </div>
         {/if}
       </div>
-      <button onclick={openFile}>Open</button>
-      <button onclick={openFolder}>Folder</button>
+      <button onclick={browse}>Browse</button>
       <button class="primary" onclick={save}>Save</button>
     </div>
   </header>
@@ -437,7 +474,14 @@ const hello = (who) => \`hi, \${who}\`;
       <main class="body" class:split={mode === 'split' && !chooserOpen}>
         {#if chooserOpen}
           <section class="pane">
-            <Chooser dir={chooserDir} files={chooserFiles} onPick={pickFromChooser} onClose={() => (chooserOpen = false)} />
+            <Chooser
+              dir={chooserDir}
+              files={chooserFiles}
+              activePath={filePath || ''}
+              onPick={pickFromChooser}
+              onClose={() => (chooserOpen = false)}
+              onChangeFolder={browseFolder}
+            />
           </section>
         {:else if mode === 'diff'}
           <section class="pane">
@@ -451,7 +495,7 @@ const hello = (who) => \`hi, \${who}\`;
           {/if}
           {#if mode === 'view' || mode === 'split'}
             <section class="pane preview-pane">
-              <Preview source={content} {onLink} pulseTick={refreshTick} scrollKey={filePath || ''} />
+              <Preview source={content} {onLink} pulseTick={refreshTick} scrollKey={filePath || ''} basePath={filePath || ''} />
             </section>
           {/if}
         {/if}
@@ -635,7 +679,18 @@ const hello = (who) => \`hi, \${who}\`;
   }
   .modes button {
     border-right: 1px solid var(--border);
-    padding: 0 12px;
+    padding: 0 11px;
+    display: flex;
+    align-items: center;
+  }
+  .modes svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .modes button:last-child { border-right: none; }
   .zoom button { padding: 0 10px; }

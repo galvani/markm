@@ -7,12 +7,12 @@ handler for markdown files, so `xdg-open file.md` just opens it.
 Built because every alternative was one of: ugly, couldn't switch themes, slow,
 or trapped inside something like VS Code.
 
-![markm showing this README in the Dark theme](docs/screenshot.png)
+![markm showing its own spec in the Gruvbox Dark theme](docs/screenshot.png)
 
 ## Features
 
 - **View / Edit / Split** modes — read rendered markdown, edit the source
-  (CodeMirror 6), or see both side by side.
+  (CodeMirror 6), or see both side by side. One icon switch in the toolbar.
 - **Live auto-refresh** — markm watches the open file; when it changes on disk it
   reloads automatically and briefly **highlights the changed blocks** (they settle
   into a subtle tint until the next change). Unsaved edits are never clobbered — a
@@ -20,18 +20,23 @@ or trapped inside something like VS Code.
 - **Git "Changes" view** — for a file under git, a word-level diff against the last
   commit (HEAD): **insertions highlighted, deletions struck through**. The button
   appears only when the open file is tracked.
-- **Open a file or a whole folder** — a sidebar switches between the markdown files
-  in a folder; launching on a directory (`markm .`, `markm /some/dir`) opens a
-  picker with **type-to-filter** and sort by **modified** (default) or **name**.
+- **Browse** — one button opens the folder holding the current document, with that
+  document **preselected** in the list; **type-to-filter**, sort by **modified**
+  (default) or **name**, and jump to any other folder from there. The same picker
+  greets you when markm is launched on a directory (`markm .`, `markm /some/dir`),
+  and a sidebar switches between the markdown files in the folder.
+- **Images render** — local images referenced from the markdown (relative or
+  absolute paths) display inline.
 - **Syntax-highlighted code blocks** — bash, sql, php, js/ts, python, go, rust,
   json, yaml, css, html, ini, diff, dockerfile, markdown. Colors come from the
   active theme. Hover a block for a **Copy** button.
 - **Clickable links** — external links open in your browser, local `.md` links open
   in markm, and `#anchors` scroll the page.
-- **Many themes** — Light, Dark, Dracula, Nord, Solarized Light, Gruvbox Dark,
-  Rosé Pine. One switch restyles the chrome, the preview, *and* the editor.
-  Theme and font live together in the **☰ appearance menu** on the right of the
-  toolbar, so the chrome stays uncluttered.
+- **Sixteen themes** — Light, Dark, Dracula, Nord, Tokyo Night, One Dark, Monokai,
+  Catppuccin (Mocha / Latte), Everforest Dark, Rosé Pine (+ Dawn), Gruvbox
+  (Dark / Light), Solarized (Dark / Light). One switch restyles the chrome, the
+  preview, *and* the editor. Theme and font live together in the **☰ appearance
+  menu** on the right of the toolbar, so the chrome stays uncluttered.
 - **Reading font** — choose System / Sans / Serif / Mono. The font **auto-scales as
   you widen the window** so line length stays readable while the content fills the
   width (no letter-boxing).
@@ -126,4 +131,4 @@ macOS `.app` bundle. Node is **only** a build-time tool; it is never shipped. Se
 
 ## License
 
-All rights reserved (personal project).
+[MIT](LICENSE) — open source. Built by [Jan Kozak](https://galvani.github.io).

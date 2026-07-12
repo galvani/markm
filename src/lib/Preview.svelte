@@ -1,13 +1,14 @@
 <script>
   import MarkdownIt from 'markdown-it';
   import { onMount } from 'svelte';
-  import { saveSetting, loadSetting, copyToClipboard } from './neu.js';
+  import { saveSetting, loadSetting, copyToClipboard, readImageDataUrl } from './neu.js';
   import { highlightCode } from './highlight.js';
 
   // pulseTick bumps (from App) only on an on-disk auto-refresh; when it changes
   // we flash whichever rendered blocks are new vs the previous render.
   // scrollKey = the open file's path; scroll position is remembered per key.
-  let { source = '', onLink, pulseTick = 0, scrollKey = '' } = $props();
+  // basePath = the open file's path; relative image srcs resolve against its dir.
+  let { source = '', onLink, pulseTick = 0, scrollKey = '', basePath = '' } = $props();
 
   // html:false keeps raw embedded HTML inert — a viewer opening arbitrary
   // files shouldn't execute markup it was handed. linkify/typographer add the
@@ -32,9 +33,60 @@
     );
   };
 
+  // Local images are rendered with the resolved absolute path parked in
+  // `data-local-src` and no `src` at all: the bytes have to be inlined
+  // asynchronously (see loadImages), and emitting a real src first would just
+  // produce a broken-image icon before the swap.
+  const defaultImage = md.renderer.rules.image;
+  md.renderer.rules.image = (tokens, idx, options, env, self) => {
+    const token = tokens[idx];
+    const src = token.attrGet('src') || '';
+    if (!/^[a-z][a-z0-9+.-]*:|^\/\//i.test(src)) {
+      const abs = resolvePath(src);
+      if (abs) {
+        token.attrSet('data-local-src', abs);
+        token.attrSet('src', '');
+      }
+    }
+    return defaultImage(tokens, idx, options, env, self);
+  };
+
+  // Resolve a relative markdown src against the open file's directory.
+  function resolvePath(src) {
+    if (!src) return null;
+    if (src.startsWith('/')) return src;
+    if (!basePath) return null;
+    const dir = basePath.slice(0, basePath.lastIndexOf('/'));
+    const out = [];
+    for (const seg of `${dir}/${decodeURI(src)}`.split('/')) {
+      if (seg === '' || seg === '.') continue;
+      if (seg === '..') out.pop();
+      else out.push(seg);
+    }
+    return '/' + out.join('/');
+  }
+
   let html = $derived(md.render(source || ''));
 
   let el; // the preview pane element
+
+  // Inline every local image's bytes as a data: URI after each render. Cached by
+  // path so a re-render (typing in Split mode, auto-refresh) doesn't re-read the
+  // file for images that are already loaded.
+  const imageCache = new Map();
+  async function loadImages() {
+    if (!el) return;
+    for (const img of el.querySelectorAll('img[data-local-src]')) {
+      const path = img.dataset.localSrc;
+      if (!imageCache.has(path)) imageCache.set(path, readImageDataUrl(path));
+      const url = await imageCache.get(path);
+      if (url && img.dataset.localSrc === path) img.src = url;
+    }
+  }
+  $effect(() => {
+    html; // re-run whenever the rendered output changes
+    loadImages();
+  });
 
   // Reading-font auto-scale. Rather than cap the window width, we keep the line
   // length readable by GROWING the font once the pane is wider than BASE_PANE

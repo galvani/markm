@@ -2,6 +2,29 @@
 
 Newest first. Decisions, rationale, and gotchas worth not re-deriving.
 
+## 2026-07-12 — Images render, nine themes, icon mode switch, Browse, MIT
+
+- **Local images now display, and the reason they didn't is worth keeping.** The
+  webview page is served over `http://localhost`, and WebKit refuses `file://`
+  subresources from an http origin — so an `<img>` pointing at a path on disk can
+  never load, no matter how the path is written. The fix inlines the bytes:
+  `readImageDataUrl()` (neu.js) reads the file with `readBinaryFile` and returns a
+  `data:` URI; Preview resolves relative srcs against the open file's directory,
+  emits `data-local-src` with an EMPTY `src` (a real src would flash a broken-image
+  icon before the swap), and fills them in after each render, cached per path.
+  base64 is built in 32 KB chunks — `String.fromCharCode(...bytes)` blows the
+  argument limit on anything but a tiny image.
+- **Nine more themes** (16 total): Catppuccin Mocha/Latte, Tokyo Night, One Dark,
+  Everforest Dark, Monokai, Solarized Dark, Gruvbox Light, Rosé Pine Dawn. Each
+  ships its own `--syn-*` five-token palette, as the earlier entry requires.
+- **Mode switch is icon-only** (inline SVG, `stroke: currentColor` so it themes
+  itself). No icon font is shipped.
+- **Open + Folder collapsed into one "Browse"**: it opens the picker on the folder
+  of the *current* document with that document preselected and scrolled into view.
+  The picker grew an "Other folder…" button — that's now the only route to the
+  native folder dialog, so don't remove it.
+- **License: MIT** (was "all rights reserved"). Author Jan Kozak / galvani.
+
 ## 2026-07-12 — Appearance menu (font + theme) + README screenshot
 
 - **Font and theme moved behind a ☰ menu** at the right of the toolbar: the two
@@ -14,9 +37,9 @@ Newest first. Decisions, rationale, and gotchas worth not re-deriving.
   `onclick` on a non-interactive element and trips two Svelte a11y warnings.
   `Esc` closes the menu before it can reach the quit/picker branches.
 - **Screenshot** in `docs/screenshot.png`, linked from the README.
-- **Known gap surfaced by it:** the preview renders a broken-image icon for that
-  relative `![](docs/screenshot.png)` — image `src`s are not resolved against the
-  open file's directory. Images in local markdown simply don't display yet.
+- **Known gap surfaced by it:** the preview rendered a broken-image icon for that
+  relative `![](docs/screenshot.png)` — images didn't display at all. Fixed in the
+  entry above.
 
 ## 2026-07-12 — Code-block syntax highlighting + copy button
 

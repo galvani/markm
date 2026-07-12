@@ -49,6 +49,39 @@ export async function readTextFile(path) {
   }
 }
 
+const IMAGE_MIME = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+  webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp', ico: 'image/x-icon', avif: 'image/avif',
+};
+
+/**
+ * Read a local image as a `data:` URI. Returns null on failure.
+ *
+ * The webview page is served over http://localhost, and WebKit refuses `file://`
+ * subresources from an http origin — so a plain `<img src="/abs/path.png">` can
+ * never load. Inlining the bytes is the only way to show an image that lives on
+ * disk next to the markdown file.
+ */
+export async function readImageDataUrl(path) {
+  if (!N) return null;
+  const ext = path.split('.').pop().toLowerCase();
+  const mime = IMAGE_MIME[ext];
+  if (!mime) return null;
+  try {
+    const buf = await N.filesystem.readBinaryFile(path);
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    // Chunked, because String.fromCharCode(...bytes) blows the argument limit on
+    // anything but a tiny image.
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return `data:${mime};base64,${btoa(bin)}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Write a UTF-8 text file. Returns true on success. */
 export async function writeTextFile(path, data) {
   if (!N) return false;
